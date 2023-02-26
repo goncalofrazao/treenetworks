@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <string.h>
 
 #define MAX_LINE 1024
 typedef struct addrinfo AI;
@@ -59,6 +60,7 @@ void udp_request(char sendline[], char recvline[], AI *addrinfo)
 {
     int fd;
     struct sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
 
     // open socket
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -73,7 +75,7 @@ void udp_request(char sendline[], char recvline[], AI *addrinfo)
     }
 
     // receive UDP answer to request
-    if (recvfrom(fd, recvline, MAX_LINE, 0, (struct sockaddr_in*) &addr, sizeof(addr)) < 0)
+    if (recvfrom(fd, recvline, MAX_LINE, 0, (struct sockaddr*) &addr, &addrlen) < 0)
     {
         exit(1);
     }
