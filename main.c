@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     // validate command-line arguments
     if (!valid_command_line(argc, argv))
     {
-        print("USAGE: ./cot IP TCP regIP regUDP\n");
+        printf("USAGE: ./cot IP TCP regIP regUDP\n");
     }
 
     // initialize current set
