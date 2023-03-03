@@ -7,8 +7,7 @@ typedef enum {
     UNKOWN,
 } CMD;
 
-typedef struct
-{
+typedef struct {
     CMD command;
     char args[2][32];
 } CAAS;
