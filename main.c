@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     if (!valid_command_line(argc, argv))
     {
         printf("USAGE: ./cot IP TCP regIP regUDP\n");
+        exit(1);
     }
 
     // initialize current set
