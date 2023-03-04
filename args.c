@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "commands.h"
+#include "args.h"
 
 bool valid_arguments(CAAS* command);
 

@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "requests.h"
-#include "commands.h"
+#include "args.h"
 #include "command_line.h"
 
 int main(int argc, char *argv[])
