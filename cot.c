@@ -73,8 +73,8 @@ int main(int argc, char *argv[])
     FD_ZERO(&current_sockets);
     FD_SET(0, &current_sockets);
 
-    int out_fds, newfd;
-    char buffer[BUFFER_SIZE], net[4], id[3];
+    int out_fds, newfd, len;
+    char buffer[BUFFER_SIZE], net[4], id[3], *msg;
     
     char *c, token[] = " \n\t";
     char *regIP = argv[3], *regUDP = argv[4];
@@ -122,7 +122,9 @@ int main(int argc, char *argv[])
                 
                 // get command
                 c = strtok(buffer, token);
-
+                if (c == NULL) {
+                    break;
+                }
                 // handle join
                 if (strcmp(c, "join") == 0) {
                     
@@ -218,6 +220,7 @@ int main(int argc, char *argv[])
                     show_routing(expedition_list, &me);
                 }
                 else if (strcmp(c, "exit") == 0) {
+                    clear_all_file_descriptors(&me, &current_sockets);
                     leave_network(net, &me, regIP, regUDP);
                     exit(0);
                 }
@@ -233,12 +236,13 @@ int main(int argc, char *argv[])
             }
             if (FD_ISSET(me.ext.fd, &ready_sockets)) {
                 if ((bytes_read = read(me.ext.fd, buffer, BUFFER_SIZE)) <= 0) {
-                    
-                    clear_leaver_node_from_expedition_list(me.ext, expedition_list);
-                    clear_file_descriptor(me.ext.fd, &current_sockets);
-                    printf("lost connection to extern %s\n", me.ext.id);
+
                     sprintf(buffer, "WITHDRAW %s\n", me.ext.id);
                     send_to_all_except_to_sender(me.ext.fd, &me, buffer);
+                    clear_leaver_node_from_expedition_list(me.ext, expedition_list);
+
+                    clear_file_descriptor(me.ext.fd, &current_sockets);
+                    printf("lost connection to extern %s\n", me.ext.id);
 
                     if (strcmp(me.bck.id, me.self.id) != 0) {
                         memmove(&me.ext, &me.bck, sizeof(node_t));
@@ -254,7 +258,7 @@ int main(int argc, char *argv[])
                     }
                     else if (me.first_free_intern > 0) {
                         memmove(&me.ext, &me.intr[0], sizeof(node_t));
-                        sprintf(buffer, "EXTERN %s %s %s", me.ext.id, me.ext.ip, me.ext.port);
+                        sprintf(buffer, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
                         inform_all_interns(&me, &current_sockets, buffer);
                         remove_intern(0, &me);
                     }
@@ -264,36 +268,51 @@ int main(int argc, char *argv[])
                 }
                 else {
                     buffer[bytes_read] = '\0';
-                    if (sscanf(buffer, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
-                        sprintf(buffer, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
-                        inform_all_interns(&me, &current_sockets, buffer);
-                        
-                        join_network(net, &me, regIP, regUDP);
-                    }
-                    else {
-                        process_command(buffer, me.ext, &me, &files, expedition_list);
-                    }
+                    msg = strtok(buffer, "\n");
+                    len = strlen(msg);
+                    msg[len] = '\n';
+                    msg[len + 1] = '\0';
+                    do {
+                        if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
+                            sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
+                            inform_all_interns(&me, &current_sockets, msg);
+                            
+                            join_network(net, &me, regIP, regUDP);
+                        }
+                        else {
+                            process_command(msg, me.ext, &me, &files, expedition_list);
+                        }    
+                    } while ((msg = strtok(NULL, "\n")) != NULL);
                 }
             }
             for (int i = 0; i < me.first_free_intern; i++) {
                 if (FD_ISSET(me.intr[i].fd, &ready_sockets)) {
                     if ((bytes_read = read(me.intr[i].fd, buffer, BUFFER_SIZE)) <= 0) {
-                        clear_leaver_node_from_expedition_list(me.ext, expedition_list);
-                        clear_file_descriptor(me.intr[i].fd, &current_sockets);
-                        printf("node %s disconnected\n", me.intr[i].id);
+
                         sprintf(buffer, "WITHDRAW %s\n", me.intr[i].id);
                         send_to_all_except_to_sender(me.intr[i].fd, &me, buffer);
+                        clear_leaver_node_from_expedition_list(me.intr[i], expedition_list);
+                        
+                        clear_file_descriptor(me.intr[i].fd, &current_sockets);
                         remove_intern(i, &me);
+                        
+                        printf("node %s disconnected\n", me.intr[i].id);
                     }
                     else {
                         buffer[bytes_read] = '\0';
-                        if (sscanf(buffer, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
-                            sprintf(buffer, "EXTERN %s %s %s", me.ext.id, me.ext.ip, me.ext.port);
-                            inform_all_interns(&me, &current_sockets, buffer);
-                        }
-                        else {
-                            process_command(buffer, me.intr[i], &me, &files, expedition_list);
-                        }
+                        msg = strtok(buffer, "\n");
+                        len = strlen(msg);
+                        msg[len] = '\n';
+                        msg[len + 1] = '\0';
+                        do {
+                            if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
+                                sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
+                                inform_all_interns(&me, &current_sockets, msg);
+                            }
+                            else {
+                                process_command(msg, me.intr[i], &me, &files, expedition_list);
+                            }    
+                        } while ((msg = strtok(NULL, "\n")) != NULL);
                     }
                 }
             }
@@ -370,8 +389,9 @@ void process_command(char buffer[], node_t sender, app_t *me, files_t *files, in
     post_t post;
     post.fd = sender.fd;
     char node_to_withdraw[4];
-    if (sscanf(buffer, "WITHDRAW %s", node_to_withdraw) == 1) {
+    if (sscanf(buffer, "WITHDRAW %s\n", node_to_withdraw) == 1) {
         expedition_list[atoi(node_to_withdraw)] = -1;
+        send_to_all_except_to_sender(sender.fd, me, buffer);
     }
     else {
         if (sscanf(buffer, "QUERY %s %s %s", post.dest, post.orig, post.name) == 3) {
@@ -388,6 +408,7 @@ void process_command(char buffer[], node_t sender, app_t *me, files_t *files, in
             else{
                 forward_message(me, &post, files, expedition_list, buffer);
             }
+            expedition_list[atoi(post.orig)] = post.fd;
         }
         else if (sscanf(buffer, "CONTENT %s %s %s", post.dest, post.orig, post.name) == 3) {
             if (strcmp(post.dest, me->self.id) == 0) {
@@ -396,6 +417,7 @@ void process_command(char buffer[], node_t sender, app_t *me, files_t *files, in
             else {
                 forward_message(me, &post, files, expedition_list, buffer);
             }
+            expedition_list[atoi(post.orig)] = post.fd;
         }
         else if (sscanf(buffer, "NOCONTENT %s %s %s", post.dest, post.orig, post.name) == 3) {
             if (strcmp(post.dest, me->self.id) == 0) {
@@ -404,19 +426,19 @@ void process_command(char buffer[], node_t sender, app_t *me, files_t *files, in
             else {
                 forward_message(me, &post, files, expedition_list, buffer);
             }
+            expedition_list[atoi(post.orig)] = post.fd;
         }
-        expedition_list[atoi(post.orig)] = post.fd;
     }
 }
 
 void forward_message(app_t *me, post_t *post, files_t *files, int expedition_list[], char buffer[])
 {
     if (expedition_list[atoi(post->dest)] != -1) {
-        printf("ONE: %s", buffer);
+        printf("ONE: %s\n", buffer);
         write(expedition_list[atoi(post->dest)], buffer, strlen(buffer));
     }
     else {
-        printf("ALL: %s", buffer);
+        printf("ALL: %s\n", buffer);
         send_to_all_except_to_sender(post->fd, me, buffer);
     }
 }
@@ -480,7 +502,7 @@ int create_file(char *filename, files_t *files)
 
 void show_topology(app_t *me)
 {
-    printf("\n\n\t\t\t TOPOLOGY \n");
+    printf("\n\n\t TOPOLOGY \n");
     printf(" --> EXTERN : \n\t\tid : %s\n\t\tip : %s\n\t\tTCP : %s\n", me->ext.id, me->ext.ip, me->ext.port);
     printf(" --> BACKUP : \n\t\tid : %s\n\t\tip : %s\n\t\tTCP : %s\n", me->bck.id, me->bck.ip, me->bck.port);
     printf(" --> INTERNS : \n");
