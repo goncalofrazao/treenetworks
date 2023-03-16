@@ -274,7 +274,6 @@ int main(int argc, char *argv[])
                         len = strlen(msg);    
                         msg[len] = '\n';
                         msg[len + 1] = '\0';
-                        printf("treating :: %s\n", msg);
                         if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
                             sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
                             inform_all_interns(&me, &current_sockets, msg);
@@ -308,7 +307,6 @@ int main(int argc, char *argv[])
                             len = strlen(msg);
                             msg[len] = '\n';
                             msg[len + 1] = '\0';
-                            printf("treating :: %s\n", msg);
                             if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
                                 sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
                                 inform_all_interns(&me, &current_sockets, msg);
