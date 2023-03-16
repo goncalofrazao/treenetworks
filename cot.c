@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     FD_SET(0, &current_sockets);
 
     int out_fds, newfd, len;
-    char buffer[BUFFER_SIZE], net[4], id[3], *msg;
+    char buffer[BUFFER_SIZE], net[4], id[3], msg[BUFFER_SIZE];
     
     char *c, token[] = " \n\t";
     char *regIP = argv[3], *regUDP = argv[4];
@@ -268,11 +268,13 @@ int main(int argc, char *argv[])
                 }
                 else {
                     buffer[bytes_read] = '\0';
-                    msg = strtok(buffer, "\n");
-                    len = strlen(msg);
-                    msg[len] = '\n';
-                    msg[len + 1] = '\0';
+                    c = strtok(buffer, "\n");
                     do {
+                        strcpy(msg, c);
+                        len = strlen(msg);    
+                        msg[len] = '\n';
+                        msg[len + 1] = '\0';
+                        printf("treating :: %s\n", msg);
                         if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
                             sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
                             inform_all_interns(&me, &current_sockets, msg);
@@ -282,7 +284,7 @@ int main(int argc, char *argv[])
                         else {
                             process_command(msg, me.ext, &me, &files, expedition_list);
                         }    
-                    } while ((msg = strtok(NULL, "\n")) != NULL);
+                    } while ((c = strtok(NULL, "\n")) != NULL);
                 }
             }
             for (int i = 0; i < me.first_free_intern; i++) {
@@ -300,11 +302,13 @@ int main(int argc, char *argv[])
                     }
                     else {
                         buffer[bytes_read] = '\0';
-                        msg = strtok(buffer, "\n");
-                        len = strlen(msg);
-                        msg[len] = '\n';
-                        msg[len + 1] = '\0';
+                        c = strtok(buffer, "\n");
                         do {
+                            strcpy(msg, c);
+                            len = strlen(msg);
+                            msg[len] = '\n';
+                            msg[len + 1] = '\0';
+                            printf("treating :: %s\n", msg);
                             if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
                                 sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
                                 inform_all_interns(&me, &current_sockets, msg);
@@ -312,7 +316,7 @@ int main(int argc, char *argv[])
                             else {
                                 process_command(msg, me.intr[i], &me, &files, expedition_list);
                             }    
-                        } while ((msg = strtok(NULL, "\n")) != NULL);
+                        } while ((c = strtok(NULL, "\n")) != NULL);
                     }
                 }
             }
