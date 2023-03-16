@@ -63,6 +63,7 @@ void clear_leaver_node_from_expedition_list(node_t leaver, int expedition_list[]
 node_t get_id(int fd, app_t *me);
 void show_routing(int expedition_list[], app_t *me);
 void reset_expedition_list(int expedition_list[]);
+void handle_buffer(char buffer[], fd_set *current_sockets, node_t sender, app_t *me, files_t *files, int expedition_list[]);
 
 int main(int argc, char *argv[])
 {
@@ -268,22 +269,7 @@ int main(int argc, char *argv[])
                 }
                 else {
                     buffer[bytes_read] = '\0';
-                    c = strtok(buffer, "\n");
-                    do {
-                        strcpy(msg, c);
-                        len = strlen(msg);    
-                        msg[len] = '\n';
-                        msg[len + 1] = '\0';
-                        if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
-                            sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
-                            inform_all_interns(&me, &current_sockets, msg);
-                            
-                            join_network(net, &me, regIP, regUDP);
-                        }
-                        else {
-                            process_command(msg, me.ext, &me, &files, expedition_list);
-                        }    
-                    } while ((c = strtok(NULL, "\n")) != NULL);
+                    handle_buffer(buffer, &current_sockets, me.ext, &me, &files, expedition_list);
                 }
             }
             for (int i = 0; i < me.first_free_intern; i++) {
@@ -301,20 +287,7 @@ int main(int argc, char *argv[])
                     }
                     else {
                         buffer[bytes_read] = '\0';
-                        c = strtok(buffer, "\n");
-                        do {
-                            strcpy(msg, c);
-                            len = strlen(msg);
-                            msg[len] = '\n';
-                            msg[len + 1] = '\0';
-                            if (sscanf(msg, "EXTERN %s %s %s", me.bck.id, me.bck.ip, me.bck.port) == 3) {
-                                sprintf(msg, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
-                                inform_all_interns(&me, &current_sockets, msg);
-                            }
-                            else {
-                                process_command(msg, me.intr[i], &me, &files, expedition_list);
-                            }    
-                        } while ((c = strtok(NULL, "\n")) != NULL);
+                        handle_buffer(buffer, &current_sockets, me.intr[i], &me, &files, expedition_list);
                     }
                 }
             }
@@ -324,6 +297,26 @@ int main(int argc, char *argv[])
     }
     
     return 0;
+}
+
+void handle_buffer(char buffer[], fd_set *current_sockets, node_t sender, app_t *me, files_t *files, int expedition_list[])
+{
+    char msg[BUFFER_SIZE], *c;
+    int len;
+    c = strtok(buffer, "\n");
+    do {
+        strcpy(msg, c);
+        len = strlen(msg);
+        msg[len] = '\n';
+        msg[len + 1] = '\0';
+        if (sscanf(msg, "EXTERN %s %s %s", me->bck.id, me->bck.ip, me->bck.port) == 3) {
+            sprintf(msg, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
+            inform_all_interns(me, current_sockets, msg);
+        }
+        else {
+            process_command(msg, sender, me, files, expedition_list);
+        }    
+    } while ((c = strtok(NULL, "\n")) != NULL);
 }
 
 void reset_expedition_list(int expedition_list[])
