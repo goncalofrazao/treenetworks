@@ -37,9 +37,9 @@ int main(int argc, char *argv[]){
 
     for (int net = 0; net < 1000; net++)
     {
-        if (net != net_to_disconnect) {
-            continue;
-        }
+		if (net_to_disconnect != 0 && net_to_disconnect != net) {
+			continue;
+		}
         for (int id = 0; id < 100; id++)
         {
             sprintf(msg, "REG %03d %02d 0.0.0.0 65535", net, id);
