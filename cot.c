@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <netdb.h>
 
+#include "validations.h"
+
 #define BUFFER_SIZE 4096
 
 typedef struct node_t {
@@ -67,7 +69,7 @@ void handle_buffer(char buffer[], fd_set *current_sockets, node_t sender, app_t 
 
 int main(int argc, char *argv[])
 {
-    if (argc != 5) exit(1);
+    if (!valid_command_line_arguments(argc, argv)) exit(1);
     setbuf(stdout, NULL);
 
     fd_set ready_sockets, current_sockets;
