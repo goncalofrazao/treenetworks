@@ -53,10 +53,28 @@ bool valid_command_line_arguments(int argc, char *argv[])
             return false;
         }
         break;
-        
+
     default:
         return false;
         break;
     }
 }
 
+int already_in_network(char new_id[], char network_info[])
+{
+    char ip[16], port[6], id[3];
+    char *c;
+
+    c = strtok(network_info, "\n");
+
+    while ((c = strtok(NULL, "\n")) != NULL) {
+        if (sscanf(c, "%s %s %s", id, ip, port) != 3) {
+            return -1;
+        }
+        if (strcmp(id, new_id) == 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}

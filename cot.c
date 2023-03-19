@@ -148,6 +148,20 @@ int main(int argc, char *argv[])
                         break;
                     }
 
+                    if ((len = already_in_network(me.self.id, buffer)) == -1) {
+                        printf("\nSERVER ANSWER IN WRONG FORMAT");
+                        break;
+                    }
+                    else if (len == 1) {
+                        printf("\nNODE ALREADY EXISTS");
+                        break;
+                    }
+
+                    // ask for net nodes
+                    if (ask_for_net_nodes(buffer, net, regIP, regUDP) < 0) {
+                        break;
+                    }
+
                     if (sscanf(buffer, "%*s %*s %s %s %s", me.ext.id, me.ext.ip, me.ext.port) == 3) {
                         try_to_connect_to_network(&me, &current_sockets);
                     }
