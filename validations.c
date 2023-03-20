@@ -78,3 +78,8 @@ int already_in_network(char new_id[], char network_info[])
 
     return 0;
 }
+
+void choose_new_id(app_t *me)
+{
+    
+}

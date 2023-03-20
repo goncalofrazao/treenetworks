@@ -15,39 +15,12 @@
 
 #define BUFFER_SIZE 4096
 
-typedef struct node_t {
-    char id[3];
-    char ip[16];
-    char port[6];
-    int fd;
-} node_t;
-
-typedef struct app_t {
-    node_t self;
-    node_t ext;
-    node_t bck;
-    node_t intr[100];
-    int first_free_intern;
-} app_t;
-
-typedef struct post_t {
-    char dest[3];
-    char orig[3];
-    char name[100];
-    int fd;
-} post_t;
-
-typedef struct files_t {
-    char names[100][100];
-    int first_free_name;
-} files_t;
-
-int ask_for_net_nodes(char buffer[], char net[], char regIP[], char regUDP[]);
-void join_network(char net[], app_t *me, char regIP[], char regUDP[]);
+int ask_for_net_nodes(char buffer[], app_t *me);
+void join_network(app_t *me);
 int request_to_connect_to_node(app_t *me);
 int open_tcp_connection(char port[]);
 int accept_tcp_connection(int server_fd, app_t *me);
-void leave_network(char net[], app_t *me, char regIP[], char regUDP[]);
+void leave_network(app_t *me);
 void clear_file_descriptor(int fd, fd_set *sockets);
 void remove_intern(int i, app_t *me);
 void clear_all_file_descriptors(app_t *me, fd_set *sockets);
@@ -78,16 +51,24 @@ int main(int argc, char *argv[])
     FD_SET(0, &current_sockets);
 
     int out_fds, newfd, len;
-    char buffer[BUFFER_SIZE], net[4], id[3], msg[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE], id[3], msg[BUFFER_SIZE];
     
     char *c, token[] = " \n\t";
-    char *regIP = argv[3], *regUDP = argv[4];
-
+    
     app_t me;
     strcpy(me.self.ip, argv[1]);
     strcpy(me.self.port, argv[2]);
     me.first_free_intern = 0;
 
+    if (argc == 5) {
+        strcpy(me.regIP, argv[3]);
+        strcpy(me.regUDP, argv[4]);
+    }
+    else {
+        strcpy(me.regIP, "193.136.138.142");
+        strcpy(me.regUDP, "59000");
+    }
+    
     files_t files;
     files.first_free_name = 0;
 
@@ -135,7 +116,7 @@ int main(int argc, char *argv[])
                     // join arguments
                     c = strtok(NULL, token);
                     if (c == NULL) break;
-                    strcpy(net, c);
+                    strcpy(me.net, c);
                     c = strtok(NULL, token);
                     if (c == NULL) break;
                     strcpy(me.self.id, c);
@@ -144,7 +125,7 @@ int main(int argc, char *argv[])
                     memmove(&me.bck, &me.self, sizeof(node_t));
 
                     // ask for net nodes
-                    if (ask_for_net_nodes(buffer, net, regIP, regUDP) < 0) {
+                    if (ask_for_net_nodes(buffer, &me) < 0) {
                         break;
                     }
 
@@ -158,7 +139,7 @@ int main(int argc, char *argv[])
                     }
 
                     // ask for net nodes
-                    if (ask_for_net_nodes(buffer, net, regIP, regUDP) < 0) {
+                    if (ask_for_net_nodes(buffer, &me) < 0) {
                         break;
                     }
 
@@ -166,13 +147,13 @@ int main(int argc, char *argv[])
                         try_to_connect_to_network(&me, &current_sockets);
                     }
                     else {
-                        join_network(net, &me, regIP, regUDP);
+                        join_network(&me);
                     }
                 }
                 else if (strcmp(c, "djoin") == 0) {
                     c = strtok(NULL, token);
                     if (c == NULL) break;
-                    strcpy(net, c);
+                    strcpy(me.net, c);
                     c = strtok(NULL, token);
                     if (c == NULL) break;
                     strcpy(me.self.id, c);
@@ -194,7 +175,7 @@ int main(int argc, char *argv[])
                 else if (strcmp(c, "leave") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
                     me.first_free_intern = 0;
-                    leave_network(net, &me, regIP, regUDP);
+                    leave_network(&me);
                     reset_expedition_list(expedition_list);
                 }
                 else if (strcmp(c, "st") == 0) {
@@ -239,7 +220,7 @@ int main(int argc, char *argv[])
                 }
                 else if (strcmp(c, "exit") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
-                    leave_network(net, &me, regIP, regUDP);
+                    leave_network(&me);
                     putchar(10);
                     exit(0);
                 }
@@ -265,7 +246,7 @@ int main(int argc, char *argv[])
 
                     if (strcmp(me.bck.id, me.self.id) != 0) {
                         memmove(&me.ext, &me.bck, sizeof(node_t));
-                        leave_network(net, &me, regIP, regUDP);
+                        leave_network(&me);
 
                         printf("\nRECONNECT TO: %s", me.bck.id);
                         if ((me.ext.fd = request_to_connect_to_node(&me)) < 0) {
@@ -574,7 +555,7 @@ void remove_intern(int i, app_t *me)
     }
 }
 
-int ask_for_net_nodes(char buffer[], char net[], char regIP[], char regUDP[])
+int ask_for_net_nodes(char buffer[], app_t *me)
 {
     struct addrinfo hints, *res;
     int fd, bytes_read;
@@ -584,12 +565,12 @@ int ask_for_net_nodes(char buffer[], char net[], char regIP[], char regUDP[])
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
-    if (getaddrinfo(regIP, regUDP, &hints, &res) != 0) {
+    if (getaddrinfo(me->regIP, me->regUDP, &hints, &res) != 0) {
         close(fd);
         return -1;
     }
     
-    sprintf(buffer, "NODES %s", net);
+    sprintf(buffer, "NODES %s", me->net);
     if (sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen) < 0) {
         close(fd);
         freeaddrinfo(res);
@@ -609,7 +590,7 @@ int ask_for_net_nodes(char buffer[], char net[], char regIP[], char regUDP[])
     return 1;
 }
 
-void join_network(char net[], app_t *me, char regIP[], char regUDP[])
+void join_network(app_t *me)
 {
     struct addrinfo hints, *res;
     int fd, bytes_read;
@@ -623,13 +604,13 @@ void join_network(char net[], app_t *me, char regIP[], char regUDP[])
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
-    if (getaddrinfo(regIP, regUDP, &hints, &res) != 0) {
+    if (getaddrinfo(me->regIP, me->regUDP, &hints, &res) != 0) {
         printf("\nERROR: CONNECTING TO NETWORK");
         close(fd);
         return;
     }
     
-    sprintf(msg, "REG %s %s %s %s", net, me->self.id, me->self.ip, me->self.port);
+    sprintf(msg, "REG %s %s %s %s", me->net, me->self.id, me->self.ip, me->self.port);
     if (sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen) < 0) {
         printf("\nERROR: CONNECTING TO NETWORK");
         close(fd);
@@ -656,7 +637,7 @@ void join_network(char net[], app_t *me, char regIP[], char regUDP[])
     }
 }
 
-void leave_network(char net[], app_t *me, char regIP[], char regUDP[])
+void leave_network(app_t *me)
 {
     struct addrinfo hints, *res;
     int fd, bytes_read;
@@ -670,13 +651,13 @@ void leave_network(char net[], app_t *me, char regIP[], char regUDP[])
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
-    if (getaddrinfo(regIP, regUDP, &hints, &res) != 0) {
+    if (getaddrinfo(me->regIP, me->regUDP, &hints, &res) != 0) {
         printf("\nERROR: LEAVING NETWORK");
         close(fd);
         return;
     }
     
-    sprintf(msg, "UNREG %s %s", net, me->self.id);
+    sprintf(msg, "UNREG %s %s", me->net, me->self.id);
     if (sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen) < 0) {
         printf("\nERROR: LEAVING NETWORK");
         close(fd);
