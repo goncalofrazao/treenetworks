@@ -1,5 +1,5 @@
-#ifndef _VALIDATIONS_
-#define _VALIDATIONS_
+#ifndef _NETWORK_
+#define _NETWORK_
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,8 +35,5 @@ typedef struct files_t {
     char names[100][100];
     int first_free_name;
 } files_t;
-
-bool valid_command_line_arguments(int argc, char *argv[]);
-int already_in_network(char new_id[], char network_info[]);
 
 #endif

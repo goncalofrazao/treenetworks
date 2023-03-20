@@ -1,4 +1,5 @@
-#include "validations.h"
+#include "validate.h"
+#include "network.h"
 
 bool valid_ip(char strip[])
 {
@@ -81,5 +82,11 @@ int already_in_network(char new_id[], char network_info[])
 
 void choose_new_id(app_t *me)
 {
+    int nodes_in_use[100];
+    for (int i = 0; i < 100; i++) {
+        nodes_in_use[i] = -1;
+    }
+
+    
     
 }

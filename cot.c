@@ -11,7 +11,8 @@
 #include <unistd.h>
 #include <netdb.h>
 
-#include "validations.h"
+#include "validate.h"
+#include "network.h"
 
 #define BUFFER_SIZE 4096
 
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
     char buffer[BUFFER_SIZE], id[3], msg[BUFFER_SIZE];
     
     char *c, token[] = " \n\t";
-    
+
     app_t me;
     strcpy(me.self.ip, argv[1]);
     strcpy(me.self.port, argv[2]);
