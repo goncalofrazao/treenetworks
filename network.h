@@ -6,6 +6,16 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <netdb.h>
+
+#define BUFFER_SIZE 4096
+
 typedef struct node_t {
     char id[3];
     char ip[16];
@@ -35,5 +45,7 @@ typedef struct files_t {
     char names[100][100];
     int first_free_name;
 } files_t;
+
+int ask_for_net_nodes(char buffer[], app_t *me);
 
 #endif

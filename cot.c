@@ -1,22 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <netdb.h>
-
 #include "validate.h"
 #include "network.h"
 
-#define BUFFER_SIZE 4096
-
-int ask_for_net_nodes(char buffer[], app_t *me);
 void join_network(app_t *me);
 int request_to_connect_to_node(app_t *me);
 int open_tcp_connection(char port[]);
@@ -135,8 +119,11 @@ int main(int argc, char *argv[])
                         break;
                     }
                     else if (len == 1) {
-                        printf("\nNODE ALREADY EXISTS");
-                        break;
+                        printf("\nERROR: UNAVAILABLE ID");
+                        if (!choose_new_id(&me)) {
+                            printf("\nERROR: PICKING NEW NODE");
+                            break;
+                        }
                     }
 
                     // ask for net nodes
@@ -315,6 +302,7 @@ void handle_buffer(char buffer[], fd_set *current_sockets, node_t sender, app_t 
             printf("\nUPDATED BACKUP TO: %s", me->bck.id);
             sprintf(msg, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
             inform_all_interns(me, current_sockets, msg);
+            join_network(me);
         }
         else {
             process_command(msg, sender, me, files, expedition_list);
@@ -432,7 +420,7 @@ void process_command(char buffer[], node_t sender, app_t *me, files_t *files, in
 void forward_message(app_t *me, post_t *post, files_t *files, int expedition_list[], char buffer[])
 {
     if (expedition_list[atoi(post->dest)] != -1) {
-        printf("\nFORWARDING MESSAGE TO: %02d", expedition_list[atoi(post->dest)]);
+        printf("\nFORWARDING MESSAGE TO: %s", post->dest);
         write(expedition_list[atoi(post->dest)], buffer, strlen(buffer));
     }
     else {
@@ -554,41 +542,6 @@ void remove_intern(int i, app_t *me)
     if (i < me->first_free_intern) {
         memmove(&me->intr[i], &me->intr[me->first_free_intern], sizeof(node_t));
     }
-}
-
-int ask_for_net_nodes(char buffer[], app_t *me)
-{
-    struct addrinfo hints, *res;
-    int fd, bytes_read;
-
-    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) return -1;
-    
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    if (getaddrinfo(me->regIP, me->regUDP, &hints, &res) != 0) {
-        close(fd);
-        return -1;
-    }
-    
-    sprintf(buffer, "NODES %s", me->net);
-    if (sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen) < 0) {
-        close(fd);
-        freeaddrinfo(res);
-        return -1;
-    }
-
-    if ((bytes_read = recvfrom(fd, buffer, BUFFER_SIZE, 0, NULL, NULL)) < 0) {
-        close(fd);
-        freeaddrinfo(res);
-        return -1;
-    }
-    buffer[bytes_read] = '\0';
-    
-    close(fd);
-    freeaddrinfo(res);
-
-    return 1;
 }
 
 void join_network(app_t *me)
