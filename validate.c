@@ -1,5 +1,4 @@
 #include "validate.h"
-#include "network.h"
 
 bool valid_ip(char strip[])
 {
@@ -80,13 +79,37 @@ int already_in_network(char new_id[], char network_info[])
     return 0;
 }
 
-void choose_new_id(app_t *me)
+bool choose_new_id(app_t *me)
 {
     int nodes_in_use[100];
     for (int i = 0; i < 100; i++) {
-        nodes_in_use[i] = -1;
+        nodes_in_use[i] = 0;
     }
 
+    char buffer[BUFFER_SIZE];
+    if (ask_for_net_nodes(buffer, me) == -1) {
+        return false;
+    }
     
+    char *c;
+    char id[3];
     
+    c = strtok(buffer, "\n");
+    while ((c = strtok(NULL, "\n")) != NULL) {
+        if (sscanf(c, "%s %*s %*s", id) != 1) {
+            return false;
+        }
+        nodes_in_use[atoi(id)] = 1;
+    }
+
+    for (int i = 0; i < 100; i++) {
+        if (nodes_in_use[i] == 0) {
+            printf("\nNEW ID: %02d", i);
+            sprintf(me->self.id, "%02d", i);
+            return true;
+        }
+    }
+
+    printf("\nNETWORK FULL");
+    return false;
 }
