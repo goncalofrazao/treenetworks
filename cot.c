@@ -24,7 +24,8 @@ node_t get_id(int fd, app_t *me);
 void show_routing(int expedition_list[], app_t *me);
 void reset_expedition_list(int expedition_list[]);
 void handle_buffer(char buffer[], fd_set *current_sockets, node_t sender, app_t *me, files_t *files, int expedition_list[]);
-int write_msg(int fd, char msg[]);
+void write_msg(int fd, char msg[]);
+int read_msg(int fd, char buffer[]);
 
 int main(int argc, char *argv[])
 {
@@ -200,6 +201,7 @@ int main(int argc, char *argv[])
                     c = strtok(NULL, token);
                     if (c == NULL) break;
                     strcpy(post.name, c);
+
                     sprintf(buffer, "QUERY %s %s %s\n", post.dest, me.self.id, post.name);
                     post.fd = expedition_list[atoi(post.dest)];
                     forward_message(&me, &post, &files, expedition_list, buffer);
@@ -223,8 +225,8 @@ int main(int argc, char *argv[])
                     printf("\nCOULD NOT ACCEPT NEW NODE");
                 }
             }
-            if (FD_ISSET(me.ext.fd, &ready_sockets)) {
-                if ((bytes_read = read(me.ext.fd, buffer, BUFFER_SIZE)) <= 0) {
+            if (FD_ISSET(me.ext.fd, &ready_sockets) && me.ext.fd != me.self.fd) {
+                if (read_msg(me.ext.fd, buffer) < 0) {
 
                     sprintf(buffer, "WITHDRAW %s\n", me.ext.id);
                     send_to_all_except_to_sender(me.ext.fd, &me, buffer);
@@ -258,13 +260,12 @@ int main(int argc, char *argv[])
                     }
                 }
                 else {
-                    buffer[bytes_read] = '\0';
                     handle_buffer(buffer, &current_sockets, me.ext, &me, &files, expedition_list);
                 }
             }
             for (int i = 0; i < me.first_free_intern; i++) {
                 if (FD_ISSET(me.intr[i].fd, &ready_sockets)) {
-                    if ((bytes_read = read(me.intr[i].fd, buffer, BUFFER_SIZE)) <= 0) {
+                    if (read_msg(me.intr[i].fd, buffer) < 0) {
 
                         sprintf(buffer, "WITHDRAW %s\n", me.intr[i].id);
                         send_to_all_except_to_sender(me.intr[i].fd, &me, buffer);
@@ -276,7 +277,6 @@ int main(int argc, char *argv[])
                         printf("\nINTERN LEFT: %s", me.intr[i].id);
                     }
                     else {
-                        buffer[bytes_read] = '\0';
                         handle_buffer(buffer, &current_sockets, me.intr[i], &me, &files, expedition_list);
                     }
                 }
@@ -515,11 +515,7 @@ void try_to_connect_to_network(app_t *me, fd_set *current_sockets)
 void inform_all_interns(app_t *me, fd_set *current_sockets, char msg[])
 {
     for (int i = 0; i < me->first_free_intern; i++) {
-        if (write_msg(me->intr[i].fd, msg) <= 0) {
-            clear_file_descriptor(me->intr[i].fd, current_sockets);
-            printf("\nINTERN LEFT: %s", me->intr[i].id);
-            remove_intern(i, me);
-        }
+        write_msg(me->intr[i].fd, msg);
     }
 }
 
@@ -663,11 +659,7 @@ int request_to_connect_to_node(app_t *me)
     }
 
     sprintf(msg, "NEW %s %s %s\n", me->self.id, me->self.ip, me->self.port);
-    if (write_msg(fd, msg) < 0) {
-        close(fd);
-        freeaddrinfo(res);
-        return -1;
-    }
+    write_msg(fd, msg);
     
     freeaddrinfo(res);
 
@@ -709,20 +701,22 @@ int open_tcp_connection(char port[])
 int accept_tcp_connection(int server_fd, app_t *me)
 {
     int bytes_read;
-    char msg[64];
+    char msg[BUFFER_SIZE];
     node_t newnode, ext;
 
     if ((newnode.fd = accept(server_fd, NULL, NULL)) < 0) {
         return -1;
     }
 
-    if ((bytes_read = read(newnode.fd, msg, 64)) < 0) {
+    if (read_msg(newnode.fd, msg) < 0) {
         close(newnode.fd);
         return -1;
     }
-    msg[bytes_read] = '\0';
-
-    sscanf(msg, "NEW %s %s %s", newnode.id, newnode.ip, newnode.port);
+    
+    if(sscanf(msg, "NEW %s %s %s", newnode.id, newnode.ip, newnode.port) != 3) {
+        close(newnode.fd);
+        return -1;
+    }
     
     if (strcmp(me->ext.id, me->self.id) == 0) {
         printf("\nPROMOTING %s TO EXTERN", newnode.id);
@@ -734,15 +728,12 @@ int accept_tcp_connection(int server_fd, app_t *me)
     }
 
     sprintf(msg, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
-    if (write_msg(newnode.fd, msg) < 0) {
-        close(newnode.fd);
-        return -1;
-    }
+    write_msg(newnode.fd, msg);
 
     return newnode.fd;
 }
 
-int write_msg(int fd, char msg[])
+void write_msg(int fd, char msg[])
 {
     int bytes_sent, bytes_to_send, bytes_writen;
 
@@ -751,10 +742,58 @@ int write_msg(int fd, char msg[])
     
     while (bytes_sent < bytes_to_send) {    
         if ((bytes_writen = write(fd, &msg[bytes_sent], bytes_to_send - bytes_sent)) <= 0) {
-            return -1;
+            return;
         }
         bytes_sent += bytes_writen;
     }
+}
+
+int read_msg(int fd, char buffer[])
+{
+    int bytes_read, out_fds;
+    char auxiliar_buffer[BUFFER_SIZE];
+    struct timeval timeout;
+
+    fd_set fds, save_fds;
+    FD_ZERO(&save_fds);
+    FD_SET(fd, &save_fds);
     
-    return 1;
+    buffer[0] = '\0';
+
+    while (1) {
+        fds = save_fds;
+
+        memset(&timeout, 0, sizeof(timeout));
+        timeout.tv_sec = 1;
+
+        out_fds = select(FD_SETSIZE, &fds, NULL, NULL, &timeout);
+
+        switch (out_fds)
+        {
+        case 0:
+        case -1:
+            return -1;
+            break;
+        default:
+            if (FD_ISSET(fd, &fds)) {
+                if ((bytes_read = read(fd, auxiliar_buffer, BUFFER_SIZE)) <= 0) {
+                    return -1;
+                }
+                auxiliar_buffer[bytes_read] = '\0';
+
+                if (bytes_read + 1 < BUFFER_SIZE - strlen(buffer)) {
+                    memmove(&buffer[strlen(buffer)], auxiliar_buffer, bytes_read + 1);
+                }
+                else {
+                    printf("\nERROR: BUFFER OVERFLOW");
+                    return -1;
+                }
+
+                if (buffer[strlen(buffer) - 1] == '\n') {
+                    return 1;
+                }
+            }
+            break;
+        }
+    }
 }
