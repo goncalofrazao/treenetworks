@@ -24,6 +24,7 @@ node_t get_id(int fd, app_t *me);
 void show_routing(int expedition_list[], app_t *me);
 void reset_expedition_list(int expedition_list[]);
 void handle_buffer(char buffer[], fd_set *current_sockets, node_t sender, app_t *me, files_t *files, int expedition_list[]);
+int write_msg(int fd, char msg[]);
 
 int main(int argc, char *argv[])
 {
@@ -388,7 +389,7 @@ void process_command(char buffer[], node_t sender, app_t *me, files_t *files, in
                 else {
                     sprintf(buffer, "NOCONTENT %s %s %s\n", post.orig, post.dest, post.name);
                 }
-                write(post.fd, buffer, strlen(buffer));
+                write_msg(post.fd, buffer);
                 printf("\nRETURNED CONTENT");
             }
             else{
@@ -421,7 +422,7 @@ void forward_message(app_t *me, post_t *post, files_t *files, int expedition_lis
 {
     if (expedition_list[atoi(post->dest)] != -1) {
         printf("\nFORWARDING MESSAGE TO: %s", post->dest);
-        write(expedition_list[atoi(post->dest)], buffer, strlen(buffer));
+        write_msg(expedition_list[atoi(post->dest)], buffer);
     }
     else {
         printf("\nFORWARDING MESSAGE TO ALL");
@@ -432,11 +433,11 @@ void forward_message(app_t *me, post_t *post, files_t *files, int expedition_lis
 void send_to_all_except_to_sender(int sender, app_t *me, char buffer[])
 {
     if (me->ext.fd != sender) {
-        write(me->ext.fd, buffer, strlen(buffer));
+        write_msg(me->ext.fd, buffer);
     }
     for (int i = 0; i < me->first_free_intern; i++) {
         if (me->intr[i].fd != sender) {
-            write(me->intr[i].fd, buffer, strlen(buffer));
+            write_msg(me->intr[i].fd, buffer);
         }
     }
     
@@ -514,7 +515,7 @@ void try_to_connect_to_network(app_t *me, fd_set *current_sockets)
 void inform_all_interns(app_t *me, fd_set *current_sockets, char msg[])
 {
     for (int i = 0; i < me->first_free_intern; i++) {
-        if (write(me->intr[i].fd, msg, strlen(msg)) <= 0) {
+        if (write_msg(me->intr[i].fd, msg) <= 0) {
             clear_file_descriptor(me->intr[i].fd, current_sockets);
             printf("\nINTERN LEFT: %s", me->intr[i].id);
             remove_intern(i, me);
@@ -662,12 +663,12 @@ int request_to_connect_to_node(app_t *me)
     }
 
     sprintf(msg, "NEW %s %s %s\n", me->self.id, me->self.ip, me->self.port);
-    if (write(fd, msg, strlen(msg)) < 0) {
+    if (write_msg(fd, msg) < 0) {
         close(fd);
         freeaddrinfo(res);
         return -1;
     }
-
+    
     freeaddrinfo(res);
 
     return fd;
@@ -733,10 +734,27 @@ int accept_tcp_connection(int server_fd, app_t *me)
     }
 
     sprintf(msg, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
-    if (write(newnode.fd, msg, strlen(msg)) < 0) {
+    if (write_msg(newnode.fd, msg) < 0) {
         close(newnode.fd);
         return -1;
     }
 
     return newnode.fd;
+}
+
+int write_msg(int fd, char msg[])
+{
+    int bytes_sent, bytes_to_send, bytes_writen;
+
+    bytes_sent = 0;
+    bytes_to_send = strlen(msg);
+    
+    while (bytes_sent < bytes_to_send) {    
+        if ((bytes_writen = write(fd, &msg[bytes_sent], bytes_to_send - bytes_sent)) <= 0) {
+            return -1;
+        }
+        bytes_sent += bytes_writen;
+    }
+    
+    return 1;
 }
