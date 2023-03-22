@@ -45,6 +45,8 @@ int main(int argc, char *argv[])
     app_t me;
     strcpy(me.self.ip, argv[1]);
     strcpy(me.self.port, argv[2]);
+    me.self.fd = -1;
+    memmove(&me.ext, &me.self, sizeof(node_t));
     me.first_free_intern = 0;
 
     if (argc == 5) {
