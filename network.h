@@ -21,6 +21,7 @@ typedef struct node_t {
     char ip[16];
     char port[6];
     int fd;
+    char buffer[BUFFER_SIZE];
 } node_t;
 
 typedef struct app_t {
@@ -32,6 +33,7 @@ typedef struct app_t {
     node_t bck;
     node_t intr[100];
     int first_free_intern;
+    node_t *expedition_list[100];
 } app_t;
 
 typedef struct post_t {
@@ -47,5 +49,30 @@ typedef struct files_t {
 } files_t;
 
 int ask_for_net_nodes(char buffer[], app_t *me);
+int read_msg(node_t *sender);
+void write_msg(int fd, char msg[]);
+int accept_tcp_connection(app_t *me);
+int open_tcp_connection(char port[]);
+void join_network(app_t *me);
+void leave_network(app_t *me);
+int request_to_connect_to_node(app_t *me);
+void remove_intern(int i, app_t *me);
+void clear_all_file_descriptors(app_t *me, fd_set *sockets);
+void clear_file_descriptor(int fd, fd_set *sockets);
+void inform_all_interns(app_t *me, char msg[]);
+int try_to_connect_to_network(app_t *me, fd_set *current_sockets);
+int file_exists(files_t *files, char *filename);
+int delete_file(char *filename, files_t *files);
+void show_names(files_t *files);
+int create_file(char *filename, files_t *files);
+void show_topology(app_t *me);
+void send_to_all_except_to_sender(node_t *sender, app_t *me, char msg[]);
+void forward_message(app_t *me, post_t *post, node_t *sender, char buffer[]);
+void process_command(char msg[], node_t *sender, app_t *me, files_t *files);
+void clear_leaver_node_from_expedition_list(node_t *leaver, app_t *me);
+void show_routing(app_t *me);
+void reset_expedition_list(app_t *me);
+int count_messages(char buffer[]);
+void handle_buffer(node_t *sender, app_t *me, files_t *files);
 
 #endif
