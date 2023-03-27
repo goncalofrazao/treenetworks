@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     int out_fds, newfd, len;
     char buffer[BUFFER_SIZE], id[3], msg[BUFFER_SIZE];
     
-    char *c, token[] = " \n\t";
+    char token[] = " \n\t", name[128];
 
     app_t me;
     strcpy(me.self.ip, argv[1]);
@@ -45,7 +45,6 @@ int main(int argc, char *argv[])
         printf("could not open a tcp connection\n");
         exit(1);
     }
-    FD_SET(me.self.fd, &current_sockets);
 
     int bytes_read;
     
@@ -58,7 +57,7 @@ int main(int argc, char *argv[])
         switch (out_fds)
         {
         case -1:
-            perror("select");
+            perror("\nselect");
             exit(1);
             break;
         
@@ -67,23 +66,10 @@ int main(int argc, char *argv[])
             if (FD_ISSET(0, &ready_sockets)) {
                 // read input
                 fgets(buffer, BUFFER_SIZE, stdin);
-                
-                // get command
-                c = strtok(buffer, token);
-                if (c == NULL) {
-                    break;
-                }
-                // handle join
-                if (strcmp(c, "join") == 0) {
-                    
-                    // join arguments
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.net, c);
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.self.id, c);
 
+                // handle join
+                if (sscanf(buffer, "join %s %s", me.net, me.self.id) == 2) {
+                    
                     memmove(&me.ext, &me.self, sizeof(node_t));
                     memmove(&me.bck, &me.self, sizeof(node_t));
 
@@ -110,81 +96,63 @@ int main(int argc, char *argv[])
                     }
 
                     if (sscanf(buffer, "%*s %*s %s %s %s", me.ext.id, me.ext.ip, me.ext.port) == 3) {
-                        try_to_connect_to_network(&me, &current_sockets);
+                        if (try_to_connect_to_network(&me, &current_sockets) < 0) {
+                            printf("\nERROR: CONNECTING");
+                            break;
+                        }
                     }
 
+                    FD_SET(me.self.fd, &current_sockets);
                     join_network(&me);
-                    
                 }
-                else if (strcmp(c, "djoin") == 0) {
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.net, c);
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.self.id, c);
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.ext.id, c);
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.ext.ip, c);
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(me.ext.port, c);
-
+                else if (sscanf(buffer, "djoin %s %s %s %s %s", me.net, me.self.id, me.ext.id, me.ext.ip, me.ext.port) == 5) {
                     if (strcmp(me.ext.id, me.self.id) != 0) {
-                        try_to_connect_to_network(&me, &current_sockets);
+                        if (try_to_connect_to_network(&me, &current_sockets) < 0) {
+                            printf("\nERROR: CONNECTING");
+                            break;
+                        }
                     }
-
+                    FD_SET(me.self.fd, &current_sockets);
                 }
-                else if (strcmp(c, "leave") == 0) {
+                else if (strcmp(buffer, "leave\n") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
                     me.first_free_intern = 0;
                     leave_network(&me);
                     reset_expedition_list(&me);
+                    memmove(&me.ext, &me.self, sizeof(node_t));
+                    memmove(&me.bck, &me.self, sizeof(node_t));
+                    FD_CLR(me.self.fd, &current_sockets);
                 }
-                else if (strcmp(c, "st") == 0) {
+                else if (strcmp(buffer, "st\n") == 0 || strcmp(buffer, "show topology\n") == 0) {
                     show_topology(&me);
                 }
-                else if (strcmp(c, "create") == 0) {
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    if (create_file(c, &files)) {
-                        printf("\nNEW FILE: %s", c);
+                else if (sscanf(buffer, "create %s", name) == 1) {
+                    if (create_file(name, &files)) {
+                        printf("\nNEW FILE: %s", name);
                     }
                     else {
-                        printf("\nNOT POSSIBLE TO CREATE %s", c);
+                        printf("\nERROR: CREATING FILE");
                     }
                 }
-                else if (strcmp(c, "sn") == 0) {
+                else if (strcmp(buffer, "sn\n") == 0 || strcmp(buffer, "show names\n") == 0) {
                     show_names(&files);
                 }
-                else if (strcmp(c, "delete") == 0) {
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    if (delete_file(c, &files)) {
-                        printf("\nDELETED FILE: %s", c);
+                else if (sscanf(buffer, "delete %s", name) == 1) {
+                    if (delete_file(name, &files)) {
+                        printf("\nDELETED FILE: %s", name);
                     }
                     else {
-                        printf("\nNOT POSSIBLE TO DELETE %s", c);
+                        printf("\nERROR : DELETING FILE");
                     }
                 }
-                else if (strcmp(c, "get") == 0) {
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(post.dest, c);
-                    c = strtok(NULL, token);
-                    if (c == NULL) break;
-                    strcpy(post.name, c);
-
+                else if (sscanf(buffer, "get %s %s", post.dest, post.name) == 2) {
                     sprintf(buffer, "QUERY %s %s %s\n", post.dest, me.self.id, post.name);
                     forward_message(&me, &post, NULL, buffer);
                 }
-                else if (strcmp(c, "sr") == 0) {
+                else if (strcmp(buffer, "sr\n") == 0 || strcmp(buffer, "show routing\n") == 0) {
                     show_routing(&me);
                 }
-                else if (strcmp(c, "exit") == 0) {
+                else if (strcmp(buffer, "exit\n") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
                     leave_network(&me);
                     putchar(10);
