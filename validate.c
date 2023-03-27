@@ -113,3 +113,35 @@ bool choose_new_id(app_t *me)
     printf("\nNETWORK FULL");
     return false;
 }
+
+bool valid_net(char *strnet)
+{
+    int net = atoi(strnet);
+    if (strlen(strnet) != 3 || net < 0 || net > 999) {
+        return false;
+    }
+    else {
+        return true;
+    }
+}
+
+bool valid_id(char *strid)
+{
+    int id = atoi(strid);
+    if (strlen(strid) != 2 || id < 0 || id > 99) {
+        return false;
+    }
+    else {
+        return true;
+    }
+}
+
+bool join_valid_arguments(app_t *me)
+{
+    if (valid_net(me->net) && valid_id(me->self.id)) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}

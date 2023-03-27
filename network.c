@@ -350,6 +350,7 @@ int create_file(char *filename, files_t *files)
 
 void show_topology(app_t *me)
 {
+    printf(" --> ME : %s\n", me->self.id);
     printf(" --> EXTERN : %s\n", me->ext.id);
     printf(" --> BACKUP : %s\n", me->bck.id);
     for (int i = 0; i < me->first_free_intern; i++) {

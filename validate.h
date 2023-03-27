@@ -11,5 +11,6 @@
 bool valid_command_line_arguments(int argc, char *argv[]);
 int already_in_network(char new_id[], char network_info[]);
 bool choose_new_id(app_t *me);
+bool join_valid_arguments(app_t *me);
 
 #endif

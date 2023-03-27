@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     FD_SET(0, &current_sockets);
 
     int out_fds, newfd, len;
-    char buffer[BUFFER_SIZE], id[3], msg[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE], msg[BUFFER_SIZE];
     
     char token[] = " \n\t", name[128];
 
@@ -69,7 +69,11 @@ int main(int argc, char *argv[])
 
                 // handle join
                 if (sscanf(buffer, "join %s %s", me.net, me.self.id) == 2) {
-                    
+                    if (!join_valid_arguments(&me)) {
+                        printf("\nERROR: INVALID ARGUMENTS");
+                        break;
+                    }
+
                     memmove(&me.ext, &me.self, sizeof(node_t));
                     memmove(&me.bck, &me.self, sizeof(node_t));
 
