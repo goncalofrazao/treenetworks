@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     files.first_free_name = 0;
 
     if((me.self.fd = open_tcp_connection(me.self.port)) < 0) {
-        printf("could not open a tcp connection\n");
+        printf("ERROR: OPENING TCP CONNECTION\n");
         exit(1);
     }
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
                     }
 
                     if ((len = already_in_network(me.self.id, buffer)) == -1) {
-                        printf("\nSERVER ANSWER IN WRONG FORMAT");
+                        printf("\nERROR: SERVER RESPONSE");
                         break;
                     }
                     else if (len == 1) {
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
                     FD_SET(newfd, &current_sockets);
                 }
                 else{
-                    printf("\nCOULD NOT ACCEPT NEW NODE");
+                    printf("\nERROR: ACCEPTING NODE");
                 }
             }
             if (FD_ISSET(me.ext.fd, &ready_sockets) && me.ext.fd != me.self.fd) {
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 
                         printf("\nRECONNECT TO: %s", me.bck.id);
                         if ((me.ext.fd = request_to_connect_to_node(&me)) < 0) {
-                            printf("\nFAILED TO RECONNECT");
+                            printf("\nERROR: RECONNECTING");
                             break;
                         }
                         FD_SET(me.ext.fd, &current_sockets);
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
                         remove_intern(0, &me);
                     }
                     else {
-                        printf("\nI AM SO LONELY, CALL TOMAS GLORIA PLEASE TO SUCK MY DICK");
+                        printf("\nI AM SO LONELY");
                         memmove(&me.ext, &me.self, sizeof(node_t));
                     }
                 }

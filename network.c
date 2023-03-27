@@ -88,7 +88,7 @@ int accept_tcp_connection(app_t *me)
     newnode.buffer[0] = '\0';
     
     if (strcmp(me->ext.id, me->self.id) == 0) {
-        printf("\nPROMOTING %s TO EXTERN", newnode.id);
+        printf("\nNEW EXTERN: %s", newnode.id);
         memmove(&me->ext, &newnode, sizeof(node_t));
         memmove(&me->bck, &me->self, sizeof(node_t));
     }
@@ -296,11 +296,11 @@ int try_to_connect_to_network(app_t *me, fd_set *current_sockets)
     memmove(&me->bck, &me->ext, sizeof(node_t));
     if ((me->ext.fd = request_to_connect_to_node(me)) > 0) {
         FD_SET(me->ext.fd, current_sockets);
-        printf("\nSENT REQUEST TO CONNECT TO: %s", me->ext.id);
+        printf("\nCONNECTING TO: %s", me->ext.id);
         return 1;
     }
     else {
-        printf("\nNOT POSSIBLE TO CONNECT");
+        printf("\nERROR: CONNECTING");
         memmove(&me->ext, &me->self, sizeof(node_t));
         return -1;
     }
@@ -332,11 +332,9 @@ int delete_file(char *filename, files_t *files)
 
 void show_names(files_t *files)
 {
-    printf("\n\n\t NAMES \n\n");
     for (int i = 0; i < files->first_free_name; i++) {
-        printf(" --> FILE %02d : %s\t \n\n", i, files->names[i]);
+        printf(" --> FILE %02d : %s\n", i + 1, files->names[i]);
     }
-    printf("\n\n");
 }
 
 int create_file(char *filename, files_t *files)
@@ -352,14 +350,11 @@ int create_file(char *filename, files_t *files)
 
 void show_topology(app_t *me)
 {
-    printf("\n\n\t TOPOLOGY \n\n");
-    printf(" --> EXTERN : \n\t\tid : %s\n\t\tip : %s\n\t\tTCP : %s\n", me->ext.id, me->ext.ip, me->ext.port);
-    printf(" --> BACKUP : \n\t\tid : %s\n\t\tip : %s\n\t\tTCP : %s\n", me->bck.id, me->bck.ip, me->bck.port);
-    printf(" --> INTERNS : \n");
+    printf(" --> EXTERN : %s\n", me->ext.id);
+    printf(" --> BACKUP : %s\n", me->bck.id);
     for (int i = 0; i < me->first_free_intern; i++) {
-        printf("\t\tid : %s\n\t\tip : %s\n\t\tTCP : %s\n\n", me->intr[i].id, me->intr[i].ip, me->intr[i].port);
+        printf(" --> INTERN %02d : %s\n", i + 1, me->intr[i].id);
     }
-    printf("\n\n");
 }
 
 void send_to_all_except_to_sender(node_t *sender, app_t *me, char msg[])
@@ -377,11 +372,11 @@ void send_to_all_except_to_sender(node_t *sender, app_t *me, char msg[])
 void forward_message(app_t *me, post_t *post, node_t *sender, char buffer[])
 {
     if (me->expedition_list[atoi(post->dest)] != NULL) {
-        printf("\nFORWARDING MESSAGE TO: %s", me->expedition_list[atoi(post->dest)]->id);
+        printf("\nFORWARDING TO: %s", me->expedition_list[atoi(post->dest)]->id);
         write_msg(me->expedition_list[atoi(post->dest)]->fd, buffer);
     }
     else {
-        printf("\nFORWARDING MESSAGE TO ALL");
+        printf("\nFORWARDING TO ALL");
         send_to_all_except_to_sender(sender, me, buffer);
     }
 }
@@ -394,7 +389,7 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
     char node_to_withdraw[4];
     
     if (sscanf(msg, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port) == 3) {
-        printf("\nUPDATED BACKUP TO: %s", me->bck.id);
+        printf("\nNEW BACKUP TO: %s", me->bck.id);
     }
     else if (sscanf(msg, "WITHDRAW %s\n", node_to_withdraw) == 1) {
         me->expedition_list[atoi(node_to_withdraw)] = NULL;
@@ -418,7 +413,7 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
     }
     else if (sscanf(msg, "CONTENT %s %s %s", post.dest, post.orig, post.name) == 3) {
         if (strcmp(post.dest, me->self.id) == 0) {
-            printf("\nFOUND CONTENT");
+            printf("\nCONTENT");
         }
         else {
             forward_message(me, &post, sender, msg);
@@ -448,13 +443,11 @@ void clear_leaver_node_from_expedition_list(node_t *leaver, app_t *me)
 
 void show_routing(app_t *me)
 {
-    printf("\n\n\t ROUTES \n\n");
     for (int i = 0; i < 100; i++) {
         if (me->expedition_list[i] != NULL) {
             printf("\n --> %02d - %s\n", i, me->expedition_list[i]->id);
         }
     }
-    printf("\n\n");
 }
 
 void reset_expedition_list(app_t *me)
