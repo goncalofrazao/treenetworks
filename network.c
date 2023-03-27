@@ -270,7 +270,9 @@ void remove_intern(int i, app_t *me)
 
 void clear_all_file_descriptors(app_t *me, fd_set *sockets)
 {
-    clear_file_descriptor(me->ext.fd, sockets);
+    if (me->self.fd != me->ext.fd) {
+        clear_file_descriptor(me->ext.fd, sockets);
+    }
     for (int i = 0; i < me->first_free_intern; i++) {
         clear_file_descriptor(me->intr[i].fd, sockets);
     }
