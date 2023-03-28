@@ -136,9 +136,29 @@ bool valid_id(char *strid)
     }
 }
 
-bool join_valid_arguments(app_t *me)
+bool join_arguments(app_t *me)
 {
     if (valid_net(me->net) && valid_id(me->self.id)) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+bool djoin_arguments(app_t *me)
+{
+    if (valid_net(me->net) && valid_id(me->self.id) && valid_id(me->ext.id) && valid_ip(me->ext.ip) && valid_port(me->ext.port)) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+bool get_arguments(post_t *post)
+{
+    if (valid_id(post->dest) && strcmp(post->orig, post->dest) != 0) {
         return true;
     }
     else {

@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 
                 // handle join
                 if (sscanf(buffer, "join %s %s", me.net, me.self.id) == 2) {
-                    if (!join_valid_arguments(&me)) {
+                    if (!join_arguments(&me)) {
                         printf("\nERROR: INVALID ARGUMENTS");
                         break;
                     }
@@ -110,6 +110,10 @@ int main(int argc, char *argv[])
                     join_network(&me);
                 }
                 else if (sscanf(buffer, "djoin %s %s %s %s %s", me.net, me.self.id, me.ext.id, me.ext.ip, me.ext.port) == 5) {
+                    if (!djoin_arguments(&me)) {
+                        printf("\nERROR: INVALID ARGUMENTS");
+                        break;
+                    }
                     if (strcmp(me.ext.id, me.self.id) != 0) {
                         if (try_to_connect_to_network(&me, &current_sockets) < 0) {
                             printf("\nERROR: CONNECTING");
@@ -150,11 +154,19 @@ int main(int argc, char *argv[])
                     }
                 }
                 else if (sscanf(buffer, "get %s %s", post.dest, post.name) == 2) {
+                    strcpy(post.orig, me.self.id);
+                    if (!get_arguments(&post)) {
+                        printf("\nERROR: INVALID ARGUMENTS");
+                        break;
+                    }
                     sprintf(buffer, "QUERY %s %s %s\n", post.dest, me.self.id, post.name);
                     forward_message(&me, &post, NULL, buffer);
                 }
                 else if (strcmp(buffer, "sr\n") == 0 || strcmp(buffer, "show routing\n") == 0) {
                     show_routing(&me);
+                }
+                else if (strcmp(buffer, "cr\n") == 0 || strcmp(buffer, "clear routing\n") == 0) {
+                    reset_expedition_list(&me);
                 }
                 else if (strcmp(buffer, "exit\n") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
