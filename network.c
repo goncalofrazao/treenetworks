@@ -48,7 +48,7 @@ int ask_for_net_nodes(char buffer[], app_t *me)
 
 int read_msg(node_t *sender)
 {
-    int bytes_read, out_fds;
+    int bytes_read;
     char auxiliar_buffer[BUFFER_SIZE];
 
     if ((bytes_read = read(sender->fd, auxiliar_buffer, BUFFER_SIZE - strlen(sender->buffer) - 1)) <= 0) {
@@ -78,9 +78,8 @@ void write_msg(int fd, char msg[])
 
 int accept_tcp_connection(app_t *me)
 {
-    int bytes_read;
     char msg[BUFFER_SIZE];
-    node_t newnode, ext;
+    node_t newnode;
     newnode.buffer[0] = '\0';
 
     if ((newnode.fd = accept(me->self.fd, NULL, NULL)) < 0) {

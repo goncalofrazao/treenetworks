@@ -20,10 +20,10 @@ int main(int argc, char *argv[])
     FD_ZERO(&current_sockets);
     FD_SET(0, &current_sockets);
 
-    int out_fds, newfd, len;
-    char buffer[BUFFER_SIZE], msg[BUFFER_SIZE];
+    int out_fds, newfd;
+    char buffer[BUFFER_SIZE];
     
-    char token[] = " \n\t", name[128];
+    char name[128];
 
     app_t me;
     me.connected = false;
@@ -55,8 +55,6 @@ int main(int argc, char *argv[])
         printf("ERROR: OPENING TCP CONNECTION\n");
         exit(1);
     }
-
-    int bytes_read;
     
     while (1)
     {
