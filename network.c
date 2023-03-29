@@ -97,6 +97,11 @@ int accept_tcp_connection(app_t *me)
         return -1;
     }
     newnode.buffer[0] = '\0';
+
+    if (node_copy(me, &newnode)) {
+        close(newnode.fd);
+        return -1;
+    }
     
     if (strcmp(me->ext.id, me->self.id) == 0) {
         printf("\nNEW EXTERN: %s", newnode.id);
@@ -643,10 +648,11 @@ int djoin(app_t *me, fd_set *current_sockets)
             memmove(&me->ext, &me->self, sizeof(node_t));
             return -1;
         }
-        
+
         me->ext.buffer[0] = '\0';
         FD_SET(me->ext.fd, current_sockets);
         printf("\nNEW BACKUP: %s", me->bck.id);
     }
+    me->connected = true;
     return 1;
 }

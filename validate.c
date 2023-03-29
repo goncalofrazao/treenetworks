@@ -143,7 +143,7 @@ bool valid_id(char *strid)
 
 bool join_arguments(app_t *me)
 {
-    if (valid_net(me->net) && valid_id(me->self.id)) {
+    if (valid_net(me->net) && valid_id(me->self.id) && me->connected == false) {
         return true;
     }
     else {
@@ -153,7 +153,7 @@ bool join_arguments(app_t *me)
 
 bool djoin_arguments(app_t *me)
 {
-    if (valid_net(me->net) && valid_id(me->self.id) && valid_id(me->ext.id) && valid_ip(me->ext.ip) && valid_port(me->ext.port)) {
+    if (valid_net(me->net) && valid_id(me->self.id) && valid_id(me->ext.id) && valid_ip(me->ext.ip) && valid_port(me->ext.port) && me->connected == false) {
         return true;
     }
     else {
@@ -169,4 +169,17 @@ bool get_arguments(post_t *post)
     else {
         return false;
     }
+}
+
+bool node_copy(app_t *me, node_t *newnode)
+{
+    if (strcmp(me->ext.id, newnode->id) == 0) {
+        return true;
+    }
+    for (int i = 0; i < me->first_free_intern; i++) {
+        if (strcmp(me->intr[i].id, newnode->id) == 0) {
+            return true;
+        }
+    }
+    return false;
 }

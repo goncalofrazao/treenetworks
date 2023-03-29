@@ -25,6 +25,7 @@ typedef struct node_t {
 } node_t;
 
 typedef struct app_t {
+    bool connected;
     char net[4];
     char regIP[16];
     char regUDP[6];

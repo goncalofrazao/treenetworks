@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
     char token[] = " \n\t", name[128];
 
     app_t me;
+    me.connected = false;
     strcpy(me.self.ip, argv[1]);
     strcpy(me.self.port, argv[2]);
     me.self.buffer[0] = '\0';
@@ -98,6 +99,7 @@ int main(int argc, char *argv[])
                 else if (strcmp(buffer, "leave\n") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
                     me.first_free_intern = 0;
+                    me.connected = false;
                     leave_network(&me);
                     reset_expedition_list(&me);
                     memmove(&me.ext, &me.self, sizeof(node_t));
