@@ -78,5 +78,7 @@ void promote_intern(app_t *me);
 int reconnect_to_backup(app_t *me);
 void clear_leaver(node_t *leaver, app_t *me, fd_set *current_sockets);
 void reconnect(app_t *me, fd_set *current_sockets);
+void join(app_t *me, fd_set *current_sockets);
+int djoin(app_t *me, fd_set *current_sockets);
 
 #endif

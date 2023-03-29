@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 bool valid_command_line_arguments(int argc, char *argv[]);
-int already_in_network(char new_id[], char network_info[]);
+int already_in_network(char new_id[], char network_info[], app_t *me);
 bool choose_new_id(app_t *me);
 bool join_arguments(app_t *me);
 bool djoin_arguments(app_t *me);

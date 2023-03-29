@@ -74,43 +74,17 @@ int main(int argc, char *argv[])
                         break;
                     }
 
-                    memmove(&me.ext, &me.self, sizeof(node_t));
-                    memmove(&me.bck, &me.self, sizeof(node_t));
-
-                    // ask for net nodes
-                    if (ask_for_net_nodes(buffer, &me) < 0) {
-                        break;
-                    }
-
-                    if (already_in_network(me.self.id, buffer) < 0) {
-                        printf("\nERROR: SERVER RESPONSE");
-                        break;
-                    }
-
-                    // ask for net nodes
-                    if (ask_for_net_nodes(buffer, &me) < 0) {
-                        break;
-                    }
-
-                    if (sscanf(buffer, "%*s %*s %s %s %s", me.ext.id, me.ext.ip, me.ext.port) == 3 && try_to_connect_to_network(&me, &current_sockets) < 0) {
-                        printf("\nERROR: CONNECTING");
-                        break;
-                    }
-
-                    FD_SET(me.self.fd, &current_sockets);
-                    join_network(&me);
+                    join(&me, &current_sockets);
                 }
                 else if (sscanf(buffer, "djoin %s %s %s %s %s", me.net, me.self.id, me.ext.id, me.ext.ip, me.ext.port) == 5) {
                     if (!djoin_arguments(&me)) {
                         printf("\nERROR: INVALID ARGUMENTS");
                         break;
                     }
-                    if (strcmp(me.ext.id, me.self.id) != 0 && try_to_connect_to_network(&me, &current_sockets) < 0) {
-                        printf("\nERROR: CONNECTING");
-                        break;
+                    if (djoin(&me, &current_sockets) > 0) {
+                        FD_SET(me.self.fd, &current_sockets);
+                        printf("\nDJOIN");
                     }
-                    printf("\nDJOIN NETWORK");
-                    FD_SET(me.self.fd, &current_sockets);
                 }
                 else if (strcmp(buffer, "leave\n") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);

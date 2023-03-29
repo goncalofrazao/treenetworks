@@ -1,4 +1,5 @@
 #include "network.h"
+#include "validate.h"
 
 int ask_for_net_nodes(char buffer[], app_t *me)
 {
@@ -17,6 +18,16 @@ int ask_for_net_nodes(char buffer[], app_t *me)
     
     sprintf(buffer, "NODES %s", me->net);
     if (sendto(fd, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen) < 0) {
+        close(fd);
+        freeaddrinfo(res);
+        return -1;
+    }
+
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 500000;
+
+    if (setsockopt (fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         close(fd);
         freeaddrinfo(res);
         return -1;
@@ -163,6 +174,16 @@ void join_network(app_t *me)
         return;
     }
 
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 500000;
+
+    if (setsockopt (fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        close(fd);
+        freeaddrinfo(res);
+        return;
+    }
+
     if ((bytes_read = recvfrom(fd, msg, BUFFER_SIZE, 0, NULL, NULL)) < 0) {
         printf("\nERROR: CONNECTING TO NETWORK");
         close(fd);
@@ -205,6 +226,16 @@ void leave_network(app_t *me)
     sprintf(msg, "UNREG %s %s", me->net, me->self.id);
     if (sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen) < 0) {
         printf("\nERROR: LEAVING NETWORK");
+        close(fd);
+        freeaddrinfo(res);
+        return;
+    }
+
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 500000;
+
+    if (setsockopt (fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         close(fd);
         freeaddrinfo(res);
         return;
@@ -295,12 +326,10 @@ int try_to_connect_to_network(app_t *me, fd_set *current_sockets)
 {
     memmove(&me->bck, &me->ext, sizeof(node_t));
     if ((me->ext.fd = request_to_connect_to_node(me)) > 0) {
-        FD_SET(me->ext.fd, current_sockets);
         printf("\nCONNECTING TO: %s", me->ext.id);
         return 1;
     }
     else {
-        printf("\nERROR: CONNECTING");
         memmove(&me->ext, &me->self, sizeof(node_t));
         return -1;
     }
@@ -549,4 +578,74 @@ void reconnect(app_t *me, fd_set *current_sockets)
         printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
         memmove(&me->ext, &me->self, sizeof(node_t));
     }
+}
+
+void join(app_t *me, fd_set *current_sockets)
+{
+    char buffer[BUFFER_SIZE];
+    memmove(&me->ext, &me->self, sizeof(node_t));
+    memmove(&me->bck, &me->self, sizeof(node_t));
+
+    // ask for net nodes
+    if (ask_for_net_nodes(buffer, me) < 0) {
+        return;
+    }
+
+    if (already_in_network(me->self.id, buffer, me) < 0) {
+        printf("\nERROR: SERVER RESPONSE");
+        return;
+    }
+
+    // ask for net nodes
+    if (ask_for_net_nodes(buffer, me) < 0) {
+        return;
+    }
+
+    if (sscanf(buffer, "%*s %*s %s %s %s", me->ext.id, me->ext.ip, me->ext.port) == 3) {
+        if (djoin(me, current_sockets) < 0) {
+            return;
+        }
+    }
+
+    FD_SET(me->self.fd, current_sockets);
+    join_network(me);
+}
+
+int djoin(app_t *me, fd_set *current_sockets)
+{
+    if (strcmp(me->ext.id, me->self.id) != 0) {
+        if (try_to_connect_to_network(me, current_sockets) < 0) {
+            printf("\nERROR: CONNECTING");
+            return -1;
+        }
+
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 500000;
+
+        if (setsockopt (me->ext.fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+            printf("\nERROR: SETING TIMEOUT");
+            clear_file_descriptor(me->ext.fd, current_sockets);
+            memmove(&me->ext, &me->self, sizeof(node_t));
+            return -1;
+        }
+
+        if (read_msg(&me->ext) < 0) {
+            printf("\nERROR: READING");
+            clear_file_descriptor(me->ext.fd, current_sockets);
+            memmove(&me->ext, &me->self, sizeof(node_t));
+            return -1;
+        }
+
+        if (sscanf(me->ext.buffer, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port) != 3) {
+            printf("\nERROR: WRONG MESSAGE");
+            clear_file_descriptor(me->ext.fd, current_sockets);
+            memmove(&me->ext, &me->self, sizeof(node_t));
+            return -1;
+        }
+        
+        FD_SET(me->ext.fd, current_sockets);
+        printf("\nNEW BACKUP: %s", me->bck.id);
+    }
+    return 1;
 }
