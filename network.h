@@ -74,5 +74,9 @@ void show_routing(app_t *me);
 void reset_expedition_list(app_t *me);
 int count_messages(char buffer[]);
 void handle_buffer(node_t *sender, app_t *me, files_t *files);
+void promote_intern(app_t *me);
+int reconnect_to_backup(app_t *me);
+void clear_leaver(node_t *leaver, app_t *me, fd_set *current_sockets);
+void reconnect(app_t *me, fd_set *current_sockets);
 
 #endif

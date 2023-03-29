@@ -390,7 +390,7 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
     char node_to_withdraw[4];
     
     if (sscanf(msg, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port) == 3) {
-        printf("\nNEW BACKUP TO: %s", me->bck.id);
+        printf("\nNEW BACKUP: %s", me->bck.id);
     }
     else if (sscanf(msg, "WITHDRAW %s\n", node_to_withdraw) == 1) {
         me->expedition_list[atoi(node_to_withdraw)] = NULL;
@@ -429,6 +429,10 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
             forward_message(me, &post, sender, msg);
         }
         me->expedition_list[atoi(post.orig)] = sender;
+    }
+    else {
+        printf("\nWHY YOU DO THIS TO ME");
+        write(sender->fd, "WHY YOU DO THIS TO ME\n", strlen("WHY YOU DO THIS TO ME\n"));
     }
 }
 
@@ -487,5 +491,62 @@ void handle_buffer(node_t *sender, app_t *me, files_t *files)
     }
     else {
         sender->buffer[0] = '\0';
+    }
+}
+
+void promote_intern(app_t *me)
+{
+    char buffer[BUFFER_SIZE];
+    memmove(&me->ext, &me->intr[0], sizeof(node_t));
+    printf("\nPROMOTED %s TO EXTERN", me->ext.id);
+    sprintf(buffer, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
+    inform_all_interns(me, buffer);
+    remove_intern(0, me);
+}
+
+int reconnect_to_backup(app_t *me)
+{
+    char buffer[BUFFER_SIZE];
+    memmove(&me->ext, &me->bck, sizeof(node_t));
+
+    printf("\nRECONNECT TO: %s", me->bck.id);
+    if ((me->ext.fd = request_to_connect_to_node(me)) < 0) {
+        printf("\nERROR: RECONNECTING");
+        if (me->first_free_intern > 0) {
+            promote_intern(me);
+        }
+        else {
+            printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
+            memmove(&me->ext, &me->self, sizeof(node_t));
+        }
+        return -1;
+    }
+
+    sprintf(buffer, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
+    inform_all_interns(me, buffer);
+    return me->ext.fd;
+}
+
+void clear_leaver(node_t *leaver, app_t *me, fd_set *current_sockets)
+{
+    char buffer[BUFFER_SIZE];
+    sprintf(buffer, "WITHDRAW %s\n", leaver->id);
+    send_to_all_except_to_sender(leaver, me, buffer);
+    clear_leaver_node_from_expedition_list(leaver, me);
+
+    clear_file_descriptor(leaver->fd, current_sockets);
+}
+
+void reconnect(app_t *me, fd_set *current_sockets)
+{
+    if (strcmp(me->bck.id, me->self.id) != 0 && (me->ext.fd = reconnect_to_backup(me)) > 0) {
+        FD_SET(me->ext.fd, current_sockets);
+    }
+    else if (me->first_free_intern > 0) {
+        promote_intern(me);
+    }
+    else {
+        printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
+        memmove(&me->ext, &me->self, sizeof(node_t));
     }
 }

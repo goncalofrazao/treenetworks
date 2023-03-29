@@ -82,16 +82,9 @@ int main(int argc, char *argv[])
                         break;
                     }
 
-                    if ((len = already_in_network(me.self.id, buffer)) == -1) {
+                    if (already_in_network(me.self.id, buffer) < 0) {
                         printf("\nERROR: SERVER RESPONSE");
                         break;
-                    }
-                    else if (len == 1) {
-                        printf("\nERROR: UNAVAILABLE ID");
-                        if (!choose_new_id(&me)) {
-                            printf("\nERROR: PICKING NEW NODE");
-                            break;
-                        }
                     }
 
                     // ask for net nodes
@@ -99,11 +92,9 @@ int main(int argc, char *argv[])
                         break;
                     }
 
-                    if (sscanf(buffer, "%*s %*s %s %s %s", me.ext.id, me.ext.ip, me.ext.port) == 3) {
-                        if (try_to_connect_to_network(&me, &current_sockets) < 0) {
-                            printf("\nERROR: CONNECTING");
-                            break;
-                        }
+                    if (sscanf(buffer, "%*s %*s %s %s %s", me.ext.id, me.ext.ip, me.ext.port) == 3 && try_to_connect_to_network(&me, &current_sockets) < 0) {
+                        printf("\nERROR: CONNECTING");
+                        break;
                     }
 
                     FD_SET(me.self.fd, &current_sockets);
@@ -114,12 +105,11 @@ int main(int argc, char *argv[])
                         printf("\nERROR: INVALID ARGUMENTS");
                         break;
                     }
-                    if (strcmp(me.ext.id, me.self.id) != 0) {
-                        if (try_to_connect_to_network(&me, &current_sockets) < 0) {
-                            printf("\nERROR: CONNECTING");
-                            break;
-                        }
+                    if (strcmp(me.ext.id, me.self.id) != 0 && try_to_connect_to_network(&me, &current_sockets) < 0) {
+                        printf("\nERROR: CONNECTING");
+                        break;
                     }
+                    printf("\nDJOIN NETWORK");
                     FD_SET(me.self.fd, &current_sockets);
                 }
                 else if (strcmp(buffer, "leave\n") == 0) {
@@ -170,9 +160,13 @@ int main(int argc, char *argv[])
                 }
                 else if (strcmp(buffer, "exit\n") == 0) {
                     clear_all_file_descriptors(&me, &current_sockets);
+                    clear_file_descriptor(me.self.fd, &current_sockets);
                     leave_network(&me);
                     putchar(10);
                     exit(0);
+                }
+                else {
+                    printf("\nCOULD NOT FIND THE COMMAND");
                 }
             }
             if (FD_ISSET(me.self.fd, &ready_sockets)) {
@@ -185,38 +179,9 @@ int main(int argc, char *argv[])
             }
             if (FD_ISSET(me.ext.fd, &ready_sockets) && me.ext.fd != me.self.fd) {
                 if (read_msg(&me.ext) < 0) {
-
-                    sprintf(buffer, "WITHDRAW %s\n", me.ext.id);
-                    send_to_all_except_to_sender(&me.ext, &me, buffer);
-                    clear_leaver_node_from_expedition_list(&me.ext, &me);
-
-                    clear_file_descriptor(me.ext.fd, &current_sockets);
                     printf("\nEXTERN LEFT: %s", me.ext.id);
-
-                    if (strcmp(me.bck.id, me.self.id) != 0) {
-                        memmove(&me.ext, &me.bck, sizeof(node_t));
-
-                        printf("\nRECONNECT TO: %s", me.bck.id);
-                        if ((me.ext.fd = request_to_connect_to_node(&me)) < 0) {
-                            printf("\nERROR: RECONNECTING");
-                            break;
-                        }
-                        FD_SET(me.ext.fd, &current_sockets);
-
-                        sprintf(buffer, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
-                        inform_all_interns(&me, buffer);
-                    }
-                    else if (me.first_free_intern > 0) {
-                        memmove(&me.ext, &me.intr[0], sizeof(node_t));
-                        printf("\nPROMOTED %s TO EXTERN", me.ext.id);
-                        sprintf(buffer, "EXTERN %s %s %s\n", me.ext.id, me.ext.ip, me.ext.port);
-                        inform_all_interns(&me, buffer);
-                        remove_intern(0, &me);
-                    }
-                    else {
-                        printf("\nI AM SO LONELY");
-                        memmove(&me.ext, &me.self, sizeof(node_t));
-                    }
+                    clear_leaver(&me.ext, &me, &current_sockets);
+                    reconnect(&me, &current_sockets);
                 }
                 else {
                     handle_buffer(&me.ext, &me, &files);
@@ -225,15 +190,9 @@ int main(int argc, char *argv[])
             for (int i = 0; i < me.first_free_intern; i++) {
                 if (FD_ISSET(me.intr[i].fd, &ready_sockets)) {
                     if (read_msg(&me.intr[i]) < 0) {
-
-                        sprintf(buffer, "WITHDRAW %s\n", me.intr[i].id);
-                        send_to_all_except_to_sender(&me.intr[i], &me, buffer);
-                        clear_leaver_node_from_expedition_list(&me.intr[i], &me);
-                        
-                        clear_file_descriptor(me.intr[i].fd, &current_sockets);
-                        remove_intern(i, &me);
-                        
                         printf("\nINTERN LEFT: %s", me.intr[i].id);
+                        clear_leaver(&me.intr[i], &me, &current_sockets);
+                        remove_intern(i, &me);
                     }
                     else {
                         handle_buffer(&me.intr[i], &me, &files);

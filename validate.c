@@ -60,7 +60,7 @@ bool valid_command_line_arguments(int argc, char *argv[])
     }
 }
 
-int already_in_network(char new_id[], char network_info[])
+int already_in_network(char new_id[], char network_info[], app_t *me)
 {
     char ip[16], port[6], id[3];
     char *c;
@@ -72,6 +72,11 @@ int already_in_network(char new_id[], char network_info[])
             return -1;
         }
         if (strcmp(id, new_id) == 0) {
+            printf("\nERROR: UNAVAILABLE ID");
+            if (!choose_new_id(me)) {
+                printf("\nERROR: PICKING NEW NODE");
+                break;
+            }
             return 1;
         }
     }
