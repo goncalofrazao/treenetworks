@@ -644,6 +644,7 @@ int djoin(app_t *me, fd_set *current_sockets)
             return -1;
         }
         
+        me->ext.buffer[0] = '\0';
         FD_SET(me->ext.fd, current_sockets);
         printf("\nNEW BACKUP: %s", me->bck.id);
     }

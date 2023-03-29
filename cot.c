@@ -1,13 +1,22 @@
 #include "validate.h"
 #include "network.h"
 
+#include <signal.h>
+
 int main(int argc, char *argv[])
 {
     if (!valid_command_line_arguments(argc, argv)) exit(1);
     setbuf(stdout, NULL);
+    
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &act, NULL) == -1) {
+        exit(1);
+    }
 
     fd_set ready_sockets, current_sockets;
-    
+
     FD_ZERO(&current_sockets);
     FD_SET(0, &current_sockets);
 
