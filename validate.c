@@ -183,3 +183,23 @@ bool node_copy(app_t *me, node_t *newnode)
     }
     return false;
 }
+
+bool extern_arguments(node_t *node)
+{
+    if (valid_id(node->id) && valid_ip(node->ip) && valid_port(node->port)) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+bool content_arguments(post_t *post)
+{
+    if (valid_id(post->orig) && valid_id(post->dest) && strcmp(post->dest, post->orig) != 0) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}

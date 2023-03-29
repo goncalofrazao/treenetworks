@@ -98,7 +98,7 @@ int accept_tcp_connection(app_t *me)
     }
     newnode.buffer[0] = '\0';
 
-    if (node_copy(me, &newnode)) {
+    if (node_copy(me, &newnode) || !extern_arguments(&newnode)) {
         close(newnode.fd);
         return -1;
     }
@@ -422,15 +422,29 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
     post_t post;
     post.fd = sender->fd;
     char node_to_withdraw[4];
-    
-    if (sscanf(msg, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port) == 3) {
+    node_t node;
+
+    if (sscanf(msg, "EXTERN %s %s %s\n", node.id, node.ip, node.port) == 3) {
+        if (!extern_arguments(&node)) {
+            printf("\nERROR: INVALID EXTERN");
+            return;
+        }
+        sscanf(msg, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port);
         printf("\nNEW BACKUP: %s", me->bck.id);
     }
     else if (sscanf(msg, "WITHDRAW %s\n", node_to_withdraw) == 1) {
+        if (!valid_id(node_to_withdraw)) {
+            printf("\nERROR: INVALID WITHDRAW");
+            return;
+        }
         me->expedition_list[atoi(node_to_withdraw)] = NULL;
         send_to_all_except_to_sender(sender, me, msg);
     }
     else if (sscanf(msg, "QUERY %s %s %s", post.dest, post.orig, post.name) == 3) {
+        if (!content_arguments(&post)) {
+            printf("\nERROR: INVALID QUERY");
+            return;
+        }
         if (strcmp(post.dest, me->self.id) == 0) {
             if (file_exists(files, post.name)) {
                 sprintf(buffer, "CONTENT %s %s %s\n", post.orig, post.dest, post.name);
@@ -447,6 +461,10 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
         me->expedition_list[atoi(post.orig)] = sender;
     }
     else if (sscanf(msg, "CONTENT %s %s %s", post.dest, post.orig, post.name) == 3) {
+        if (!content_arguments(&post)) {
+            printf("\nERROR: INVALID CONTENT");
+            return;
+        }
         if (strcmp(post.dest, me->self.id) == 0) {
             printf("\nCONTENT");
         }
@@ -456,6 +474,10 @@ void process_command(char msg[], node_t *sender, app_t *me, files_t *files)
         me->expedition_list[atoi(post.orig)] = sender;
     }
     else if (sscanf(msg, "NOCONTENT %s %s %s", post.dest, post.orig, post.name) == 3) {
+        if (!content_arguments(&post)) {
+            printf("\nERROR: INVALID NOCONTENT");
+            return;
+        }
         if (strcmp(post.dest, me->self.id) == 0) {
             printf("\nNO CONTENT");
         }

@@ -15,5 +15,8 @@ bool join_arguments(app_t *me);
 bool djoin_arguments(app_t *me);
 bool get_arguments(post_t *post);
 bool node_copy(app_t *me, node_t *newnode);
+bool extern_arguments(node_t *node);
+bool valid_id(char *strid);
+bool content_arguments(post_t *post);
 
 #endif
