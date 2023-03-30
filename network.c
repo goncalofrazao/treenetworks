@@ -132,11 +132,13 @@ int open_tcp_connection(char port[])
     }
 
     if (bind(fd, res->ai_addr, res->ai_addrlen) < 0) {
+        freeaddrinfo(res);
         close(fd);
         return -1;
     }
 
     if (listen(fd, 5) < 0) {
+        freeaddrinfo(res);
         close(fd);
         return -1;
     }
