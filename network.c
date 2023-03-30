@@ -563,6 +563,7 @@ void handle_bad_reconnect(app_t *me)
     else {
         printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
         memmove(&me->ext, &me->self, sizeof(node_t));
+        memmove(&me->bck, &me->self, sizeof(node_t));
     }
 }
 
@@ -574,7 +575,6 @@ int reconnect_to_backup(app_t *me, fd_set *current_sockets)
     printf("\nRECONNECT TO: %s", me->bck.id);
     if ((me->ext.fd = request_to_connect_to_node(me)) < 0) {
         printf("\nERROR: RECONNECTING");
-        handle_bad_reconnect(me);
         return -1;
     }
 
@@ -585,21 +585,18 @@ int reconnect_to_backup(app_t *me, fd_set *current_sockets)
     if (setsockopt (me->ext.fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         printf("\nERROR: SETING TIMEOUT");
         clear_file_descriptor(me->ext.fd, current_sockets);
-        handle_bad_reconnect(me);
         return -1;
     }
 
     if (read_msg(&me->ext) < 0) {
         printf("\nERROR: READING");
         clear_file_descriptor(me->ext.fd, current_sockets);
-        handle_bad_reconnect(me);
         return -1;
     }
 
     if (sscanf(me->ext.buffer, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port) != 3) {
         printf("\nERROR: WRONG MESSAGE");
         clear_file_descriptor(me->ext.fd, current_sockets);
-        handle_bad_reconnect(me);
         return -1;
     }
 
@@ -626,12 +623,8 @@ void reconnect(app_t *me, fd_set *current_sockets)
     if (strcmp(me->bck.id, me->self.id) != 0 && (me->ext.fd = reconnect_to_backup(me, current_sockets)) > 0) {
         FD_SET(me->ext.fd, current_sockets);
     }
-    else if (me->first_free_intern > 0) {
-        promote_intern(me);
-    }
     else {
-        printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
-        memmove(&me->ext, &me->self, sizeof(node_t));
+        handle_bad_reconnect(me);
     }
 }
 
@@ -737,4 +730,11 @@ void promote_from_queue(app_t *me, queue_t *queue, int i, fd_set *current_socket
         delete = command_new(me, &queue->queue[i], msg) < 0 ? DELETE : NOT_DELETE;
         remove_node_from_queue(i, queue, current_sockets, delete);
     }    
+}
+
+void reset_fd(int fd, fd_set *current_sockets)
+{
+    if (!FD_ISSET(fd, current_sockets)) {
+        FD_SET(fd, current_sockets);
+    }
 }

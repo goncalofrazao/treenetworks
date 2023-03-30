@@ -93,5 +93,6 @@ int djoin(app_t *me, fd_set *current_sockets);
 int calculate_time(int i, queue_t *queue);
 void remove_node_from_queue(int i, queue_t *queue, fd_set *current_sockets, int delete);
 void promote_from_queue(app_t *me, queue_t *queue, int i, fd_set *current_sockets);
+void reset_fd(int fd, fd_set *current_sockets);
 
 #endif

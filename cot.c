@@ -160,6 +160,9 @@ int main(int argc, char *argv[])
                     accept_tcp_connection(&me, &queue, &current_sockets);
                     printf("\nNEW CONNECTION");
                 }
+                else {
+                    FD_CLR(me.self.fd, &current_sockets);
+                }
             }
             if (FD_ISSET(me.ext.fd, &ready_sockets) && me.ext.fd != me.self.fd) {
                 if (read_msg(&me.ext) < 0) {
@@ -187,17 +190,17 @@ int main(int argc, char *argv[])
                 if (calculate_time(i, &queue) > 1500) {
                     printf("\nERROR: NO NEW MESSAGE");
                     remove_node_from_queue(i, &queue, &current_sockets, DELETE);
+                    reset_fd(me.self.fd, &current_sockets);
                     continue;
                 }
                 else if (FD_ISSET(queue.queue[i].fd, &ready_sockets)) {
                     if (read_msg(&queue.queue[i]) < 0) {
-                        printf("\nREADING");
                         remove_node_from_queue(i, &queue, &current_sockets, DELETE);
                     }
                     else {
-                        printf("\nACCEPTING");
                         promote_from_queue(&me, &queue, i, &current_sockets);
                     }
+                    reset_fd(me.self.fd, &current_sockets);
                 }
             }
             
