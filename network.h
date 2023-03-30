@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -15,12 +16,15 @@
 #include <netdb.h>
 
 #define BUFFER_SIZE 4096
+#define DELETE 1
+#define NOT_DELETE 0
 
 typedef struct node_t {
     char id[3];
     char ip[16];
     char port[6];
     int fd;
+    clock_t timer;
     char buffer[BUFFER_SIZE];
 } node_t;
 
@@ -49,10 +53,15 @@ typedef struct files_t {
     int first_free_name;
 } files_t;
 
+typedef struct queue_t {
+    node_t queue[100];
+    int head;
+} queue_t;
+
 int ask_for_net_nodes(char buffer[], app_t *me);
 int read_msg(node_t *sender);
 void write_msg(int fd, char msg[]);
-int accept_tcp_connection(app_t *me);
+void accept_tcp_connection(app_t *me, queue_t *queue, fd_set *current_sockets);
 int open_tcp_connection(char port[]);
 void join_network(app_t *me);
 void leave_network(app_t *me);
@@ -76,10 +85,13 @@ void reset_expedition_list(app_t *me);
 int count_messages(char buffer[]);
 void handle_buffer(node_t *sender, app_t *me, files_t *files);
 void promote_intern(app_t *me);
-int reconnect_to_backup(app_t *me);
+int reconnect_to_backup(app_t *me, fd_set *current_sockets);
 void clear_leaver(node_t *leaver, app_t *me, fd_set *current_sockets);
 void reconnect(app_t *me, fd_set *current_sockets);
 void join(app_t *me, fd_set *current_sockets);
 int djoin(app_t *me, fd_set *current_sockets);
+int calculate_time(int i, queue_t *queue);
+void remove_node_from_queue(int i, queue_t *queue, fd_set *current_sockets, int delete);
+void promote_from_queue(app_t *me, queue_t *queue, int i, fd_set *current_sockets);
 
 #endif

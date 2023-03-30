@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     FD_ZERO(&current_sockets);
     FD_SET(0, &current_sockets);
 
-    int out_fds, newfd;
+    int out_fds;
     char buffer[BUFFER_SIZE];
     
     char name[128];
@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
         printf("ERROR: OPENING TCP CONNECTION\n");
         exit(1);
     }
+
+    queue_t queue;
+    queue.head = 0;
     
     while (1)
     {
@@ -153,11 +156,9 @@ int main(int argc, char *argv[])
                 }
             }
             if (FD_ISSET(me.self.fd, &ready_sockets)) {
-                if ((newfd = accept_tcp_connection(&me)) > 0) {
-                    FD_SET(newfd, &current_sockets);
-                }
-                else{
-                    printf("\nERROR: ACCEPTING NODE");
+                if (queue.head < 99) {
+                    accept_tcp_connection(&me, &queue, &current_sockets);
+                    printf("\nNEW CONNECTION");
                 }
             }
             if (FD_ISSET(me.ext.fd, &ready_sockets) && me.ext.fd != me.self.fd) {
@@ -179,6 +180,23 @@ int main(int argc, char *argv[])
                     }
                     else {
                         handle_buffer(&me.intr[i], &me, &files);
+                    }
+                }
+            }
+            for (int i = 0; i < queue.head; i++) {
+                if (calculate_time(i, &queue) > 1500) {
+                    printf("\nERROR: NO NEW MESSAGE");
+                    remove_node_from_queue(i, &queue, &current_sockets, DELETE);
+                    continue;
+                }
+                else if (FD_ISSET(queue.queue[i].fd, &ready_sockets)) {
+                    if (read_msg(&queue.queue[i]) < 0) {
+                        printf("\nREADING");
+                        remove_node_from_queue(i, &queue, &current_sockets, DELETE);
+                    }
+                    else {
+                        printf("\nACCEPTING");
+                        promote_from_queue(&me, &queue, i, &current_sockets);
                     }
                 }
             }

@@ -76,46 +76,42 @@ void write_msg(int fd, char msg[])
     }
 }
 
-int accept_tcp_connection(app_t *me)
+void accept_tcp_connection(app_t *me, queue_t *queue, fd_set *current_sockets)
 {
-    char msg[BUFFER_SIZE];
-    node_t newnode;
-    newnode.buffer[0] = '\0';
+    if ((queue->queue[queue->head].fd = accept(me->self.fd, NULL, NULL)) < 0) {
+        return;
+    }
+    queue->queue[queue->head].timer = clock();
+    queue->queue[queue->head].buffer[0] = '\0';
+    FD_SET(queue->queue[queue->head].fd, current_sockets);
+    queue->head++;
+}
 
-    if ((newnode.fd = accept(me->self.fd, NULL, NULL)) < 0) {
+int command_new(app_t *me, node_t *newnode, char msg[])
+{
+    newnode->buffer[0] = '\0';
+   
+    if(sscanf(msg, "NEW %s %s %s", newnode->id, newnode->ip, newnode->port) != 3) {
         return -1;
     }
 
-    if (read_msg(&newnode) < 0) {
-        close(newnode.fd);
-        return -1;
-    }
-    
-    if(sscanf(newnode.buffer, "NEW %s %s %s", newnode.id, newnode.ip, newnode.port) != 3) {
-        close(newnode.fd);
-        return -1;
-    }
-    newnode.buffer[0] = '\0';
-
-    if (node_copy(me, &newnode) || !extern_arguments(&newnode)) {
-        close(newnode.fd);
+    if (node_copy(me, newnode) || !extern_arguments(newnode)) {
         return -1;
     }
     
     if (strcmp(me->ext.id, me->self.id) == 0) {
-        printf("\nNEW EXTERN: %s", newnode.id);
-        memmove(&me->ext, &newnode, sizeof(node_t));
+        printf("\nNEW EXTERN: %s", newnode->id);
+        memmove(&me->ext, newnode, sizeof(node_t));
         memmove(&me->bck, &me->self, sizeof(node_t));
     }
     else {
-        printf("\nNEW INTERN: %s", newnode.id);
-        memmove(&me->intr[me->first_free_intern++], &newnode, sizeof(node_t));
+        printf("\nNEW INTERN: %s", newnode->id);
+        memmove(&me->intr[me->first_free_intern++], newnode, sizeof(node_t));
     }
 
     sprintf(msg, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
-    write_msg(newnode.fd, msg);
-
-    return newnode.fd;
+    write_msg(newnode->fd, msg);
+    return newnode->fd;
 }
 
 int open_tcp_connection(char port[])
@@ -559,7 +555,18 @@ void promote_intern(app_t *me)
     remove_intern(0, me);
 }
 
-int reconnect_to_backup(app_t *me)
+void handle_bad_reconnect(app_t *me)
+{
+    if (me->first_free_intern > 0) {
+        promote_intern(me);
+    }
+    else {
+        printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
+        memmove(&me->ext, &me->self, sizeof(node_t));
+    }
+}
+
+int reconnect_to_backup(app_t *me, fd_set *current_sockets)
 {
     char buffer[BUFFER_SIZE];
     memmove(&me->ext, &me->bck, sizeof(node_t));
@@ -567,15 +574,37 @@ int reconnect_to_backup(app_t *me)
     printf("\nRECONNECT TO: %s", me->bck.id);
     if ((me->ext.fd = request_to_connect_to_node(me)) < 0) {
         printf("\nERROR: RECONNECTING");
-        if (me->first_free_intern > 0) {
-            promote_intern(me);
-        }
-        else {
-            printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
-            memmove(&me->ext, &me->self, sizeof(node_t));
-        }
+        handle_bad_reconnect(me);
         return -1;
     }
+
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 500000;
+
+    if (setsockopt (me->ext.fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        printf("\nERROR: SETING TIMEOUT");
+        clear_file_descriptor(me->ext.fd, current_sockets);
+        handle_bad_reconnect(me);
+        return -1;
+    }
+
+    if (read_msg(&me->ext) < 0) {
+        printf("\nERROR: READING");
+        clear_file_descriptor(me->ext.fd, current_sockets);
+        handle_bad_reconnect(me);
+        return -1;
+    }
+
+    if (sscanf(me->ext.buffer, "EXTERN %s %s %s\n", me->bck.id, me->bck.ip, me->bck.port) != 3) {
+        printf("\nERROR: WRONG MESSAGE");
+        clear_file_descriptor(me->ext.fd, current_sockets);
+        handle_bad_reconnect(me);
+        return -1;
+    }
+
+    me->ext.buffer[0] = '\0';
+    printf("\nNEW BACKUP: %s", me->bck.id);
 
     sprintf(buffer, "EXTERN %s %s %s\n", me->ext.id, me->ext.ip, me->ext.port);
     inform_all_interns(me, buffer);
@@ -594,7 +623,7 @@ void clear_leaver(node_t *leaver, app_t *me, fd_set *current_sockets)
 
 void reconnect(app_t *me, fd_set *current_sockets)
 {
-    if (strcmp(me->bck.id, me->self.id) != 0 && (me->ext.fd = reconnect_to_backup(me)) > 0) {
+    if (strcmp(me->bck.id, me->self.id) != 0 && (me->ext.fd = reconnect_to_backup(me, current_sockets)) > 0) {
         FD_SET(me->ext.fd, current_sockets);
     }
     else if (me->first_free_intern > 0) {
@@ -676,4 +705,36 @@ int djoin(app_t *me, fd_set *current_sockets)
     }
     me->connected = true;
     return 1;
+}
+
+int calculate_time(int i, queue_t *queue)
+{
+    clock_t diff = clock() - queue->queue[i].timer;
+    return diff * 1000 / CLOCKS_PER_SEC;
+}
+
+void remove_node_from_queue(int i, queue_t *queue, fd_set *current_sockets, int delete)
+{
+    if (delete) {
+        clear_file_descriptor(queue->queue[i].fd, current_sockets);
+    }
+    queue->head--;
+    if (i < queue->head) {
+        memmove(&queue->queue[i], &queue->queue[queue->head], sizeof(node_t));
+    }
+}
+
+void promote_from_queue(app_t *me, queue_t *queue, int i, fd_set *current_sockets)
+{
+    char msg[BUFFER_SIZE], *c;
+    int n_of_msgs, delete;
+    n_of_msgs = count_messages(queue->queue[i].buffer);
+    
+    if (n_of_msgs > 0) {
+        c = strtok(queue->queue[i].buffer, "\n");
+        strcpy(msg, c);
+        strcpy(&msg[strlen(msg)], "\n\0");
+        delete = command_new(me, &queue->queue[i], msg) < 0 ? DELETE : NOT_DELETE;
+        remove_node_from_queue(i, queue, current_sockets, delete);
+    }    
 }
