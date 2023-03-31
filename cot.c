@@ -189,13 +189,13 @@ int main(int argc, char *argv[])
             for (int i = 0; i < queue.head; i++) {
                 if (calculate_time(i, &queue) > 1500) {
                     printf("\nERROR: NO NEW MESSAGE");
-                    remove_node_from_queue(i, &queue, &current_sockets, DELETE);
+                    remove_connection_from_queue(i, &queue, &current_sockets, DELETE);
                     reset_fd(me.self.fd, &current_sockets);
                     continue;
                 }
                 else if (FD_ISSET(queue.queue[i].fd, &ready_sockets)) {
                     if (read_msg(&queue.queue[i]) < 0) {
-                        remove_node_from_queue(i, &queue, &current_sockets, DELETE);
+                        remove_connection_from_queue(i, &queue, &current_sockets, DELETE);
                     }
                     else {
                         promote_from_queue(&me, &queue, i, &current_sockets);

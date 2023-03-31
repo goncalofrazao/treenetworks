@@ -755,7 +755,7 @@ void handle_bad_reconnect(app_t *me)
     }
     // reset extern and backup
     else {
-        printf("\nI AM SO LONELY, PLS CALL TOMAS GLORIA TO SUCK MY DICK");
+        printf("\nALONE IN THE NETWORK");
         memmove(&me->ext, &me->self, sizeof(node_t));
         memmove(&me->bck, &me->self, sizeof(node_t));
     }
@@ -927,7 +927,7 @@ int djoin(app_t *me, fd_set *current_sockets)
     return 1;
 }
 /**
- * @brief calculate time science node is connected until now
+ * @brief calculate time science connection is connected
  * 
  * @param i position of connection to calculate time
  * @param queue queue of connections
@@ -939,14 +939,14 @@ int calculate_time(int i, queue_t *queue)
     return diff * 1000 / CLOCKS_PER_SEC;
 }
 /**
- * @brief remove node from the queue
+ * @brief remove connection from the queue
  * 
  * @param i position of the connection to remove
  * @param queue queue of connections
  * @param current_sockets current file descriptors activated
  * @param delete 1 if it is supposed to clear fd, else 0
  */
-void remove_node_from_queue(int i, queue_t *queue, fd_set *current_sockets, int delete)
+void remove_connection_from_queue(int i, queue_t *queue, fd_set *current_sockets, int delete)
 {
     // clear node fd
     if (delete) {
@@ -980,7 +980,7 @@ void promote_from_queue(app_t *me, queue_t *queue, int i, fd_set *current_socket
         // process NEW command
         delete = command_new(me, &queue->queue[i], msg) < 0 ? DELETE : NOT_DELETE;
         // remove connection from queue
-        remove_node_from_queue(i, queue, current_sockets, delete);
+        remove_connection_from_queue(i, queue, current_sockets, delete);
     }    
 }
 /**
