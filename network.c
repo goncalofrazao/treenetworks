@@ -106,7 +106,7 @@ void accept_tcp_connection(app_t *me, queue_t *queue, fd_set *current_sockets)
         return;
     }
     // init timer, buffer, and set fd
-    queue->queue[queue->head].timer = clock();
+    queue->queue[queue->head].timer = time(&queue->queue[queue->head].timer);
     queue->queue[queue->head].buffer[0] = '\0';
     FD_SET(queue->queue[queue->head].fd, current_sockets);
     queue->head++;
@@ -872,6 +872,9 @@ void join(app_t *me, fd_set *current_sockets)
             return;
         }
     }
+    else {
+        me->connected = true;
+    }
     // start listening new connections
     FD_SET(me->self.fd, current_sockets);
     // update nodes list
@@ -925,18 +928,6 @@ int djoin(app_t *me, fd_set *current_sockets)
     }
     me->connected = true;
     return 1;
-}
-/**
- * @brief calculate time science connection is connected
- * 
- * @param i position of connection to calculate time
- * @param queue queue of connections
- * @return time in miliseconds
- */
-int calculate_time(int i, queue_t *queue)
-{
-    clock_t diff = clock() - queue->queue[i].timer;
-    return diff * 1000 / CLOCKS_PER_SEC;
 }
 /**
  * @brief remove connection from the queue

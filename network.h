@@ -24,7 +24,7 @@ typedef struct node_t {
     char ip[16]; // ip
     char port[6]; // port
     int fd; // fd of the socket to communicate
-    clock_t timer; // time arrived
+    time_t timer; // time arrived
     char buffer[BUFFER_SIZE]; // buffer with messages from this node
 } node_t;
 // all application information
@@ -78,7 +78,6 @@ void clear_leaver(node_t *leaver, app_t *me, fd_set *current_sockets);
 void reconnect(app_t *me, fd_set *current_sockets);
 void join(app_t *me, fd_set *current_sockets);
 int djoin(app_t *me, fd_set *current_sockets);
-int calculate_time(int i, queue_t *queue);
 void remove_connection_from_queue(int i, queue_t *queue, fd_set *current_sockets, int delete);
 void promote_from_queue(app_t *me, queue_t *queue, int i, fd_set *current_sockets);
 void reset_fd(int fd, fd_set *current_sockets);

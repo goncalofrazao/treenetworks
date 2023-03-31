@@ -58,7 +58,8 @@ int main(int argc, char *argv[])
 
     queue_t queue;
     queue.head = 0;
-    
+    time_t timer;
+
     while (1)
     {
         ready_sockets = current_sockets; // reset sockets
@@ -187,7 +188,8 @@ int main(int argc, char *argv[])
                 }
             }
             for (int i = 0; i < queue.head; i++) { // check all new connections
-                if (calculate_time(i, &queue) > 1500) { // remove connections that exceed time to send NEW
+                timer = time(&timer);
+                if (difftime(timer, queue.queue[i].timer) > 1.5) { // remove connections that exceed time to send NEW
                     printf("\nERROR: NO NEW MESSAGE");
                     remove_connection_from_queue(i, &queue, &current_sockets, DELETE); // remove connection
                     reset_fd(me.self.fd, &current_sockets); // reset server new connections if case
